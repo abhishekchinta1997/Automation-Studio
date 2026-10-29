@@ -2,7 +2,7 @@
 
 **Automation Studio** is a professional, enterprise-grade Practice Web Application and QA Sandbox engineered specifically for practicing and mastering web test automation using industry-leading frameworks like **Playwright**, **Selenium**, and **Cypress**.
 
-![Automation Studio Preview](https://img.shields.io/badge/Status-Active%20Development-success)  ![TypeScript](https://img.shields.io/badge/TypeScript-React%2018-blue)  ![License](https://img.shields.io/badge/License-MIT-yellow)
+![Automation Studio Preview](https://img.shields.io/badge/Status-Active%20Development-success)  ![TypeScript](https://img.shields.io/badge/TypeScript-React%2018-blue)
 
 ---
 

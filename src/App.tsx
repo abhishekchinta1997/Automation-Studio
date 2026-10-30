@@ -26,7 +26,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
-          <Route element={<ProtectedRoute roles={["Admin User", "Super User"] as any} />}>
+          <Route element={<ProtectedRoute roles={["Admin User", "Super User"]} />}>
             <Route path="/admin" element={<AdminHomePage />} />
             <Route path="/admin/users" element={<AdminUserManagementPage />} />
             <Route path="/admin/lab" element={<AutomationLabPage />} />

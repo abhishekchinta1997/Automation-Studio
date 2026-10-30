@@ -69,7 +69,7 @@ export default function Layout() {
             whiteSpace: "nowrap",
           }}
         >
-          <span>{sidebarVisible ? "Menu ☰" : "☰"}</span>
+          <span>{sidebarVisible ? "☰ Menu" : "☰"}</span>
         </button>
 
         {/* Navigation items with icons and tooltips */}

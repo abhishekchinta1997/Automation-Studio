@@ -689,7 +689,7 @@ function handleGenerateTestUsers() {
 
         <button
           data-testid="user-management-bulk-delete-button"
-          disabled={!getAllowedSelectedUsers().length}
+          disabled={getAllowedSelectedUsers().length < 2}
           onClick={handleBulkDelete}
         >
           Bulk Delete
@@ -697,7 +697,7 @@ function handleGenerateTestUsers() {
 
         <button
           data-testid="user-management-bulk-enable-button"
-          disabled={!getAllowedSelectedUsers().length}
+          disabled={getAllowedSelectedUsers().length < 2}
           onClick={() => handleBulkStatus("Active" as UserStatus)}
         >
           Bulk Enable
@@ -705,7 +705,7 @@ function handleGenerateTestUsers() {
 
         <button
           data-testid="user-management-bulk-disable-button"
-          disabled={!getAllowedSelectedUsers().length}
+          disabled={getAllowedSelectedUsers().length < 2}
           onClick={() => handleBulkStatus("Disabled" as UserStatus)}
         >
           Bulk Disable

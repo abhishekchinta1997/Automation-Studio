@@ -6,9 +6,9 @@
 ---
 
 ## 🏗️ Architecture & Core Stack
-* **Framework:** React 18 with TypeScript, bundled via Vite.
-* **UI & Styling:** Tailwind CSS with a Modern Slate Dark Theme (`#0F172A` background, `#1E293B` cards, `#334155` borders, `#6366F1` accents).
-* **Routing:** React Router DOM (Login Screen, Home / Admin Dashboard, Automation Sandbox).
+* **Framework:** React 19 with TypeScript, bundled via Vite.
+* **UI & Styling:** Custom Modern Slate Theme (native CSS with #0F172A background, #1E293B cards, #334155 borders, #6366F1 accents; no Tailwind dependency).
+* **Routing:** React Router DOM using HashRouter for GitHub Pages compatibility.
 * **State & Data:** Client-side only using React Context API (`AuthContext`), state hooks, and browser `localStorage`/`sessionStorage`. **No backend database.**
 * **Testability:** All interactive components use explicit `data-testid` attributes for reliable test script targeting.
 

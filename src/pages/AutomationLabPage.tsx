@@ -60,10 +60,28 @@ export default function AutomationLabPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [sentMessageModal, setSentMessageModal] = useState<string | null>(null);
 
+  // Searchable Country Dropdown State
+  const countriesList = [
+    "Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Austria",
+    "Bangladesh", "Belgium", "Brazil", "Canada", "Chile", "China", "Colombia",
+    "Denmark", "Egypt", "Finland", "France", "Germany", "Greece", "Hong Kong",
+    "Hungary", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy",
+    "Japan", "Kenya", "Malaysia", "Mexico", "Netherlands", "New Zealand", "Nigeria",
+    "Norway", "Pakistan", "Peru", "Philippines", "Poland", "Portugal", "Romania",
+    "Russia", "Saudi Arabia", "Singapore", "South Africa", "South Korea", "Spain",
+    "Sweden", "Switzerland", "Taiwan", "Thailand", "Turkey", "Ukraine",
+    "United Arab Emirates", "United Kingdom", "United States", "Vietnam"
+  ];
+  const [countryQuery, setCountryQuery] = useState("");
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+
   // Advanced Features State
   const [tableData] = useState<TableRow[]>(initialTableData);
   const [tableSearch, setTableSearch] = useState("");
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [tableSortKey, setTableSortKey] = useState<keyof TableRow>("id");
+  const [tableSortDirection, setTableSortDirection] = useState<"asc" | "desc">("asc");
   const [ajaxLoading, setAjaxLoading] = useState(false);
   const [ajaxResultText, setAjaxResultText] = useState("Click button to load delayed AJAX content.");
   const [storageKey, setStorageKey] = useState("automation_token");
@@ -134,9 +152,38 @@ export default function AutomationLabPage() {
     }
   }
 
-  const filteredTableRows = tableData.filter((row) =>
-    `${row.id} ${row.name} ${row.department} ${row.role} ${row.status}`.toLowerCase().includes(tableSearch.toLowerCase())
-  );
+  const filteredTableRows = tableData
+    .filter((row) =>
+      `${row.id} ${row.name} ${row.department} ${row.role} ${row.status}`.toLowerCase().includes(tableSearch.toLowerCase())
+    )
+    .sort((a, b) => {
+      let aVal = a[tableSortKey];
+      let bVal = b[tableSortKey];
+      let result = 0;
+      if (typeof aVal === "string" && typeof bVal === "string") {
+        result = aVal.localeCompare(bVal);
+      } else {
+        result = String(aVal).localeCompare(String(bVal));
+      }
+      return tableSortDirection === "asc" ? result : -result;
+    });
+
+  function handleTableSort(key: keyof TableRow) {
+    if (tableSortKey === key) {
+      const nextDir = tableSortDirection === "asc" ? "desc" : "asc";
+      setTableSortDirection(nextDir);
+      logAction("Table Sort", `Sorted table by ${key} (${nextDir})`, "info", { sortKey: key, direction: nextDir });
+    } else {
+      setTableSortKey(key);
+      setTableSortDirection("asc");
+      logAction("Table Sort", `Sorted table by ${key} (asc)`, "info", { sortKey: key, direction: "asc" });
+    }
+  }
+
+  function getTableSortIcon(key: keyof TableRow) {
+    if (tableSortKey !== key) return "↕";
+    return tableSortDirection === "asc" ? "▲" : "▼";
+  }
 
   // Generate Test Script Snippet
   function generateTestCode(): string {
@@ -393,6 +440,81 @@ public class ${className} {
 
               <div className="lab-form-group">
                 <div className="lab-element-header">
+                  <h4>Searchable Country Dropdown</h4>
+                  <small className="muted">Type to filter, use keyboard arrows or click to select</small>
+                </div>
+                <div className="country-dropdown-wrapper">
+                  <input
+                    data-testid="country-search-input"
+                    placeholder="Type to search country..."
+                    value={countryQuery}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCountryQuery(val);
+                      setCountryOpen(val.trim().length > 0);
+                      setHighlightedIndex(0);
+                    }}
+                    onKeyDown={(e) => {
+                      const filtered = countriesList.filter((c) => c.toLowerCase().includes(countryQuery.toLowerCase()));
+                      if (!countryOpen && (e.key === "ArrowDown" || e.key === "Enter") && countryQuery.trim().length > 0) {
+                        setCountryOpen(true);
+                        return;
+                      }
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        if (countryOpen && filtered.length) {
+                          setHighlightedIndex((prev) => (prev + 1) % filtered.length);
+                        }
+                      } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        if (countryOpen && filtered.length) {
+                          setHighlightedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+                        }
+                      } else if (e.key === "Enter" && countryOpen && filtered.length > 0) {
+                        e.preventDefault();
+                        const selected = filtered[highlightedIndex] || filtered[0];
+                        setCountryQuery(selected);
+                        setCountryOpen(false);
+                        logAction("Country Selected", `Selected country via keyboard: ${selected}`, "success", { country: selected });
+                      } else if (e.key === "Escape") {
+                        setCountryOpen(false);
+                      }
+                    }}
+                  />
+                  {countryOpen && countryQuery.trim().length > 0 && (
+                    <ul className="country-dropdown-list" data-testid="country-dropdown-list">
+                      {countriesList
+                        .filter((c) => c.toLowerCase().includes(countryQuery.toLowerCase()))
+                        .length === 0 ? (
+                        <li className="country-option-empty" data-testid="country-option-empty">
+                          No matching countries found
+                        </li>
+                      ) : (
+                        countriesList
+                          .filter((c) => c.toLowerCase().includes(countryQuery.toLowerCase()))
+                          .map((country, index) => (
+                            <li
+                              key={country}
+                              className={`country-option-item ${index === highlightedIndex ? "highlighted" : ""}`}
+                              data-testid="country-option-item"
+                              onMouseEnter={() => setHighlightedIndex(index)}
+                              onClick={() => {
+                                setCountryQuery(country);
+                                setCountryOpen(false);
+                                logAction("Country Selected", `Selected country via click: ${country}`, "success", { country });
+                              }}
+                            >
+                              {country}
+                            </li>
+                          ))
+                      )}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              <div className="lab-form-group">
+                <div className="lab-element-header">
                   <h4>Dropdown Select</h4>
                   <small className="muted">Single-select options menu</small>
                 </div>
@@ -591,7 +713,7 @@ public class ${className} {
               <div className="lab-form-group">
                 <input
                   data-testid="lab-table-search-input"
-                  placeholder="Filter table rows..."
+                  placeholder="Filter table rows across all columns..."
                   value={tableSearch}
                   onChange={(e) => setTableSearch(e.target.value)}
                 />
@@ -617,38 +739,89 @@ public class ${className} {
                           }}
                         />
                       </th>
-                      <th>ID</th>
-                      <th>Name</th>
-                      <th>Dept</th>
-                      <th>Role</th>
-                      <th>Status</th>
+                      <th>
+                        <button
+                          type="button"
+                          className="sortable-header"
+                          data-testid="sort-header-id"
+                          onClick={() => handleTableSort("id")}
+                        >
+                          ID {getTableSortIcon("id")}
+                        </button>
+                      </th>
+                      <th>
+                        <button
+                          type="button"
+                          className="sortable-header"
+                          data-testid="sort-header-name"
+                          onClick={() => handleTableSort("name")}
+                        >
+                          Name {getTableSortIcon("name")}
+                        </button>
+                      </th>
+                      <th>
+                        <button
+                          type="button"
+                          className="sortable-header"
+                          data-testid="sort-header-department"
+                          onClick={() => handleTableSort("department")}
+                        >
+                          Dept {getTableSortIcon("department")}
+                        </button>
+                      </th>
+                      <th>
+                        <button
+                          type="button"
+                          className="sortable-header"
+                          data-testid="sort-header-role"
+                          onClick={() => handleTableSort("role")}
+                        >
+                          Role {getTableSortIcon("role")}
+                        </button>
+                      </th>
+                      <th>
+                        <button
+                          type="button"
+                          className="sortable-header"
+                          data-testid="sort-header-status"
+                          onClick={() => handleTableSort("status")}
+                        >
+                          Status {getTableSortIcon("status")}
+                        </button>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredTableRows.map((row) => (
-                      <tr key={row.id} data-testid={`lab-table-row-${row.id.toLowerCase()}`}>
-                        <td>
-                          <input
-                            type="checkbox"
-                            data-testid={`lab-table-row-checkbox-${row.id.toLowerCase()}`}
-                            checked={selectedRows.includes(row.id)}
-                            onChange={() => {
-                              setSelectedRows((prev) =>
-                                prev.includes(row.id) ? prev.filter((id) => id !== row.id) : [...prev, row.id]
-                              );
-                              logAction("Table Row Select", `Toggled row ${row.id}`, "info", { rowId: row.id });
-                            }}
-                          />
-                        </td>
-                        <td>{row.id}</td>
-                        <td>{row.name}</td>
-                        <td>{row.department}</td>
-                        <td>{row.role}</td>
-                        <td>
-                          <span className={`status-badge ${row.status.toLowerCase()}`}>{row.status}</span>
-                        </td>
+                    {filteredTableRows.length === 0 ? (
+                      <tr data-testid="lab-table-empty-row">
+                        <td colSpan={6} style={{ textAlign: "center", color: "#667085" }}>No matching records found</td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredTableRows.map((row) => (
+                        <tr key={row.id} data-testid={`lab-table-row-${row.id.toLowerCase()}`}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              data-testid={`lab-table-row-checkbox-${row.id.toLowerCase()}`}
+                              checked={selectedRows.includes(row.id)}
+                              onChange={() => {
+                                setSelectedRows((prev) =>
+                                  prev.includes(row.id) ? prev.filter((id) => id !== row.id) : [...prev, row.id]
+                                );
+                                logAction("Table Row Select", `Toggled row ${row.id}`, "info", { rowId: row.id });
+                              }}
+                            />
+                          </td>
+                          <td data-testid={`cell-id-${row.id.toLowerCase()}`}>{row.id}</td>
+                          <td data-testid={`cell-name-${row.id.toLowerCase()}`}>{row.name}</td>
+                          <td data-testid={`cell-department-${row.id.toLowerCase()}`}>{row.department}</td>
+                          <td data-testid={`cell-role-${row.id.toLowerCase()}`}>{row.role}</td>
+                          <td data-testid={`cell-status-${row.id.toLowerCase()}`}>
+                            <span className={`status-badge ${row.status.toLowerCase()}`}>{row.status}</span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>

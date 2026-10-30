@@ -106,7 +106,7 @@ export default function Layout() {
       </aside>
 
       <section className="main-area" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-        <header className="topbar" data-testid="top-navbar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: "1px solid #e6ebf3" }}>
+        <header className="topbar" data-testid="top-navbar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: darkMode ? "1px solid #27272a" : "1px solid #e6ebf3" }}>
           <div style={{ display: "flex", alignItems: "center" }}>
             <Link
               to={isAdmin ? "/admin" : "/test-user"}
@@ -174,7 +174,7 @@ export default function Layout() {
           <Outlet />
         </main>
 
-        <footer className="app-footer" style={{ borderTop: "1px solid #e6ebf3", padding: "16px 24px", textAlign: "center", fontSize: "13px", color: "#667085", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", background: darkMode ? "#172033" : "#ffffff" }}>
+        <footer className="app-footer" style={{ borderTop: darkMode ? "1px solid #27272a" : "1px solid #e6ebf3", padding: "16px 24px", textAlign: "center", fontSize: "13px", color: darkMode ? "#9ca3af" : "#667085", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", background: darkMode ? "#172033" : "#ffffff" }}>
           <span>© 2026 Automation Studio · Developed by Abhishek Chinta</span>
           <a
             href="https://github.com/abhishekchinta1997/"

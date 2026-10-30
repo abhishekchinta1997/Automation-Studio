@@ -1,0 +1,5 @@
+- [Dark Mode Text Visibility](dark-mode-text-visibility.md) — Fixed text contrast and visibility issues in dark mode across tables, modals, filters, and pagination.
+- [Searchable Country Dropdown](searchable-country-dropdown.md) — Added searchable country dropdown component to Automation Lab Form Controls with keyboard/mouse navigation and data-testid attributes.
+- [Dynamic Table Sorting and Filtering](dynamic-table-sorting-filtering.md) — Enhanced dynamic data tables in Automation Lab with column sorting, cross-column filtering, and robust data-testid selectors.
+- [Searchable Country Dropdown Adjustments](searchable-country-dropdown-adjustments.md) — Moved country dropdown to the top of Form Controls and ensured dropdown list only appears after typing.
+- [Modern Slate Theme Redesign](modern-slate-theme-redesign.md) — Redesigned dark mode theme from pure black to a modern slate palette (#0F172A background, #1E293B cards, #334155 borders, #6366F1 accents).

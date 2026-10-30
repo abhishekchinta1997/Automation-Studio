@@ -45,6 +45,15 @@
 
 ---
 
+## 🤖 AI-Assisted Engineering
+
+**Automation Studio** was conceptualized, architected, and driven by **Abhishek Chinta**, built entirely through AI-assisted development workflows:
+
+* **Concept & Product Direction:** Abhishek Chinta
+* **Development & Refinement:** Built using ChatGPT, OmniRoute (powered by Claude Code), and Google Gemini.
+
+---
+
 ## 📦 Getting Started Locally
 
 Follow these steps to run Automation Studio locally on your machine:

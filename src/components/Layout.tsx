@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
-import { Home, Users, FlaskConical, Sun, Moon, LogOut } from "lucide-react";
+import { Home, Users, FlaskConical, Table, Sun, Moon, LogOut } from "lucide-react";
 
 export default function Layout() {
   const { currentUser, logout, darkMode, toggleDarkMode, toast } = useApp();
@@ -33,6 +33,12 @@ export default function Layout() {
       icon: <FlaskConical size={20} />,
       to: isAdmin ? "/admin/lab" : "/lab",
       testId: "nav-automation-lab",
+    },
+    {
+      label: "Dynamic Web Tables",
+      icon: <Table size={20} />,
+      to: isAdmin ? "/admin/tables" : "/tables",
+      testId: "nav-dynamic-tables",
     },
   ];
 

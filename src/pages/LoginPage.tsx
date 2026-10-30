@@ -47,6 +47,7 @@ export default function LoginPage() {
         maxHeight: "100vh",
         overflow: "hidden",
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         padding: "24px",
@@ -570,6 +571,36 @@ export default function LoginPage() {
           )}
         </form>
       </div>
+
+      <footer
+        style={{
+          position: "absolute",
+          bottom: "12px",
+          left: 0,
+          right: 0,
+          textAlign: "center",
+          fontSize: "12px",
+          color: darkMode ? "#94a3b8" : "#64748b",
+          zIndex: 10,
+        }}
+      >
+        <span>© 2026 Automation Studio. Built by </span>
+        <a
+          href="https://github.com/abhishekchinta1997"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: "#6366f1",
+            textDecoration: "none",
+            fontWeight: 600,
+            transition: "color 0.2s ease",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#818cf8")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#6366f1")}
+        >
+          Abhishek Chinta
+        </a>
+      </footer>
     </main>
   );
 }

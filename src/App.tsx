@@ -6,6 +6,7 @@ import AdminHomePage from "./pages/AdminHomePage";
 import AdminUserManagementPage from "./pages/AdminUserManagementPage";
 import TestUserHomePage from "./pages/TestUserHomePage";
 import AutomationLabPage from "./pages/AutomationLabPage";
+import DynamicTablesPage from "./pages/DynamicTablesPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import { useApp } from "./context/AppContext";
@@ -29,10 +30,12 @@ export default function App() {
             <Route path="/admin" element={<AdminHomePage />} />
             <Route path="/admin/users" element={<AdminUserManagementPage />} />
             <Route path="/admin/lab" element={<AutomationLabPage />} />
+            <Route path="/admin/tables" element={<DynamicTablesPage />} />
           </Route>
           <Route element={<ProtectedRoute roles={["Test User"]} />}>
             <Route path="/test-user" element={<TestUserHomePage />} />
             <Route path="/lab" element={<AutomationLabPage />} />
+            <Route path="/tables" element={<DynamicTablesPage />} />
           </Route>
         </Route>
       </Route>

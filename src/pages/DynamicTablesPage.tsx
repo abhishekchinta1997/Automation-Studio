@@ -169,13 +169,13 @@ export default function DynamicTablesPage() {
   }
 
   return (
-    <div className="dynamic-tables-page" data-testid="dynamic-tables-page" style={{ padding: "8px 0" }}>
-      <div className="between" style={{ marginBottom: "20px", flexWrap: "wrap", gap: "16px" }}>
+    <div className="dynamic-tables-page" data-testid="dynamic-tables-page">
+      <div className="between dynamic-tables-header">
         <div>
-          <h1 style={{ fontSize: "28px", fontWeight: 800, margin: 0, display: "flex", alignItems: "center", gap: "12px", color: darkMode ? "#f8fafc" : "#0f172a" }}>
+          <h1 className="dynamic-tables-title">
             <Table size={28} color="#6366f1" /> Dynamic Web Tables
           </h1>
-          <p className="muted" style={{ margin: "4px 0 0", fontSize: "14px", color: darkMode ? "#94a3b8" : "#64748b" }}>
+          <p className="muted dynamic-tables-subtitle">
             Advanced data grid with instant search, multi-column sorting, pagination, inline editing, and robust test locators.
           </p>
         </div>

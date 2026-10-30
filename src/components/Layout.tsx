@@ -112,7 +112,7 @@ export default function Layout() {
       </aside>
 
       <section className="main-area" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-        <header className="topbar" data-testid="top-navbar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: darkMode ? "1px solid #27272a" : "1px solid #e6ebf3" }}>
+        <header className="topbar" data-testid="top-navbar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: darkMode ? "1px solid #334155" : "1px solid #e2e8f0" }}>
           <div style={{ display: "flex", alignItems: "center" }}>
             <Link
               to={isAdmin ? "/admin" : "/test-user"}
@@ -120,7 +120,7 @@ export default function Layout() {
               style={{
                 fontWeight: 800,
                 fontSize: "18px",
-                color: darkMode ? "#f8fafc" : "#172033",
+                color: darkMode ? "#f8fafc" : "#0f172a",
                 textDecoration: "none",
                 cursor: "pointer",
               }}
@@ -143,9 +143,9 @@ export default function Layout() {
                 fontWeight: 600,
                 fontSize: "14px",
                 cursor: "pointer",
-                background: darkMode ? "rgba(255, 255, 255, 0.1)" : "#f3f4f6",
-                color: darkMode ? "#ffffff" : "#1f2937",
-                border: darkMode ? "1px solid rgba(255, 255, 255, 0.2)" : "1px solid #e5e7eb",
+                background: darkMode ? "rgba(255, 255, 255, 0.1)" : "#f1f5f9",
+                color: darkMode ? "#ffffff" : "#1e293b",
+                border: darkMode ? "1px solid rgba(255, 255, 255, 0.2)" : "1px solid #cbd5e1",
               }}
             >
               {darkMode ? <Sun size={16} color="#ffffff" /> : <Moon size={16} color="#1f2937" />}
@@ -160,7 +160,7 @@ export default function Layout() {
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                background: "linear-gradient(135deg, #7c3aed, #9333ea)",
+                background: "#6366f1",
                 color: "#ffffff",
                 border: "none",
                 borderRadius: "8px",
@@ -168,6 +168,7 @@ export default function Layout() {
                 fontSize: "14px",
                 fontWeight: 600,
                 cursor: "pointer",
+                boxShadow: "0 2px 8px rgba(99, 102, 241, 0.3)",
               }}
             >
               <LogOut size={16} color="#ffffff" />
@@ -180,7 +181,7 @@ export default function Layout() {
           <Outlet />
         </main>
 
-        <footer className="app-footer" style={{ borderTop: darkMode ? "1px solid #27272a" : "1px solid #e6ebf3", padding: "16px 24px", textAlign: "center", fontSize: "13px", color: darkMode ? "#9ca3af" : "#667085", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", background: darkMode ? "#172033" : "#ffffff" }}>
+        <footer className="app-footer" style={{ borderTop: darkMode ? "1px solid #334155" : "1px solid #e2e8f0", padding: "16px 24px", textAlign: "center", fontSize: "13px", color: darkMode ? "#94a3b8" : "#64748b", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", background: darkMode ? "#1e293b" : "#ffffff" }}>
           <span>© 2026 Automation Studio · Developed by Abhishek Chinta</span>
           <a
             href="https://github.com/abhishekchinta1997/"

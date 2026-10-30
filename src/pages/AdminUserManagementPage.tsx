@@ -677,6 +677,17 @@ function handleGenerateTestUsers() {
         </button>
 
         <button
+          data-testid="reset-seed-data-btn"
+          aria-label="Reset Seed Data"
+          onClick={() => {
+            localStorage.removeItem("automation-users");
+            window.location.reload();
+          }}
+        >
+          Reset Seed Data / Restore Default Users
+        </button>
+
+        <button
           data-testid="user-management-bulk-delete-button"
           disabled={!getAllowedSelectedUsers().length}
           onClick={handleBulkDelete}

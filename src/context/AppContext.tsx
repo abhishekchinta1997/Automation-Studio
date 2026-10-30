@@ -32,7 +32,23 @@ function nowStamp() {
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [users, setUsers] = useState<AppUser[]>(initialUsers);
+  const [users, setUsers] = useState<AppUser[]>(() => {
+    const saved = localStorage.getItem("automation-users");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        // fallback
+      }
+    }
+    return initialUsers;
+  });
+
+  // Keep localStorage updated when users change so automatic fallback and re-seeding work properly
+  React.useEffect(() => {
+    localStorage.setItem("automation-users", JSON.stringify(users));
+  }, [users]);
   const [activity, setActivity] = useState<ActivityItem[]>(initialActivity);
   const [loginAttempts, setLoginAttempts] = useState<LoginAttempt[]>([]);
   const [systemLogs, setSystemLogs] = useState<SystemLog[]>([]);

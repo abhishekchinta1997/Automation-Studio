@@ -1,53 +1,18 @@
 import { useState, useMemo } from "react";
 import { useApp } from "../context/AppContext";
 import { Table, Search, Download, Edit2, Save, X, ChevronUp, ChevronDown, CheckCircle, AlertCircle, Clock } from "lucide-react";
-
-type DynamicRecord = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  status: "Active" | "Pending" | "Inactive";
-  joinDate: string;
-};
-
-const initialRecords: DynamicRecord[] = [
-  { id: "REC-1001", name: "Alice Smith", email: "alice.smith@example.com", role: "Engineering Lead", status: "Active", joinDate: "2024-01-15" },
-  { id: "REC-1002", name: "Bob Johnson", email: "bob.johnson@example.com", role: "DevOps Engineer", status: "Active", joinDate: "2024-02-10" },
-  { id: "REC-1003", name: "Charlie Davis", email: "charlie.davis@example.com", role: "Product Manager", status: "Pending", joinDate: "2024-03-05" },
-  { id: "REC-1004", name: "Diana Prince", email: "diana.prince@example.com", role: "Automation QA", status: "Active", joinDate: "2024-03-20" },
-  { id: "REC-1005", name: "Ethan Hunt", email: "ethan.hunt@example.com", role: "Security Auditor", status: "Inactive", joinDate: "2024-04-11" },
-  { id: "REC-1006", name: "Fiona Gallagher", email: "fiona.g@example.com", role: "Frontend Developer", status: "Active", joinDate: "2024-05-02" },
-  { id: "REC-1007", name: "George Clark", email: "george.clark@example.com", role: "Backend Engineer", status: "Active", joinDate: "2024-05-18" },
-  { id: "REC-1008", name: "Hannah Abbott", email: "hannah.a@example.com", role: "UI/UX Designer", status: "Pending", joinDate: "2024-06-01" },
-  { id: "REC-1009", name: "Ian Malcolm", email: "ian.malcolm@example.com", role: "Data Scientist", status: "Active", joinDate: "2024-06-14" },
-  { id: "REC-1010", name: "Julia Roberts", email: "julia.r@example.com", role: "HR Manager", status: "Inactive", joinDate: "2024-07-09" },
-  { id: "REC-1011", name: "Kevin Bacon", email: "kevin.b@example.com", role: "Software Architect", status: "Active", joinDate: "2024-07-22" },
-  { id: "REC-1012", name: "Laura Croft", email: "laura.c@example.com", role: "Penetration Tester", status: "Active", joinDate: "2024-08-03" },
-  { id: "REC-1013", name: "Michael Scott", email: "michael.s@example.com", role: "Regional Manager", status: "Pending", joinDate: "2024-08-19" },
-  { id: "REC-1014", name: "Natalie Portman", email: "natalie.p@example.com", role: "AI Research Lead", status: "Active", joinDate: "2024-09-01" },
-  { id: "REC-1015", name: "Oscar Isaac", email: "oscar.i@example.com", role: "Full Stack Engineer", status: "Active", joinDate: "2024-09-15" },
-  { id: "REC-1016", name: "Peter Parker", email: "peter.p@example.com", role: "Junior Developer", status: "Active", joinDate: "2024-10-02" },
-  { id: "REC-1017", name: "Quinn Fabray", email: "quinn.f@example.com", role: "QA Engineer", status: "Inactive", joinDate: "2024-10-18" },
-  { id: "REC-1018", name: "Rachel Green", email: "rachel.g@example.com", role: "Product Designer", status: "Active", joinDate: "2024-11-05" },
-  { id: "REC-1019", name: "Steve Rogers", email: "steve.r@example.com", role: "System Administrator", status: "Active", joinDate: "2024-11-20" },
-  { id: "REC-1020", name: "Tony Stark", email: "tony.s@example.com", role: "Chief Technology Officer", status: "Active", joinDate: "2024-12-01" },
-  { id: "REC-1021", name: "Uma Thurman", email: "uma.t@example.com", role: "Security Engineer", status: "Pending", joinDate: "2024-12-12" },
-  { id: "REC-1022", name: "Victor Stone", email: "victor.s@example.com", role: "Cloud Architect", status: "Active", joinDate: "2025-01-08" },
-  { id: "REC-1023", name: "Wanda Maximoff", email: "wanda.m@example.com", role: "Automation Expert", status: "Active", joinDate: "2025-01-20" },
-  { id: "REC-1024", name: "Xavier Woods", email: "xavier.w@example.com", role: "Developer Advocate", status: "Inactive", joinDate: "2025-02-04" },
-  { id: "REC-1025", name: "Yara Shahidi", email: "yara.s@example.com", role: "Software Engineer", status: "Active", joinDate: "2025-02-15" },
-  { id: "REC-1026", name: "Zachary Levi", email: "zachary.l@example.com", role: "QA Lead", status: "Active", joinDate: "2025-03-01" },
-];
+import { DynamicRecord, TableSortKey, TableSortDirection } from "../types/table";
+import { initialDynamicRecords } from "../data/dynamicRecords";
+import { recordsToCSV, downloadFile, compareDynamicRecords } from "../utils/tableExport";
 
 export default function DynamicTablesPage() {
   const { showToast, darkMode } = useApp();
 
-  const [records, setRecords] = useState<DynamicRecord[]>(initialRecords);
+  const [records, setRecords] = useState<DynamicRecord[]>(initialDynamicRecords);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
-  const [sortKey, setSortKey] = useState<keyof DynamicRecord>("id");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [sortKey, setSortKey] = useState<TableSortKey>("id");
+  const [sortDirection, setSortDirection] = useState<TableSortDirection>("asc");
   const [pageSize, setPageSize] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
@@ -63,7 +28,7 @@ export default function DynamicTablesPage() {
   });
 
   // Handle Sorting
-  function handleSort(key: keyof DynamicRecord) {
+  function handleSort(key: TableSortKey) {
     if (sortKey === key) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {

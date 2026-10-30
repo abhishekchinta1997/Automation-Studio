@@ -28,3 +28,4 @@ export const initialDynamicRecords: DynamicRecord[] = [
   { id: "REC-1025", name: "Yara Shahidi", email: "yara.s@example.com", role: "Software Engineer", status: "Active", joinDate: "2025-02-15" },
   { id: "REC-1026", name: "Zachary Levi", email: "zachary.l@example.com", role: "QA Lead", status: "Active", joinDate: "2025-03-01" },
 ];
+

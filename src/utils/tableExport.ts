@@ -76,3 +76,4 @@ export function compareDynamicRecords(
 
   return sortDirection === "asc" ? cmp : -cmp;
 }
+

@@ -11,3 +11,4 @@ export interface DynamicRecord {
 
 export type TableSortKey = keyof DynamicRecord;
 export type TableSortDirection = "asc" | "desc";
+

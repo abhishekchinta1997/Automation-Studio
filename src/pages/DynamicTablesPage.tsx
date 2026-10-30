@@ -1,14 +1,44 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useApp } from "../context/AppContext";
-import { Table, Search, Download, Edit2, Save, X, ChevronUp, ChevronDown, CheckCircle, AlertCircle, Clock } from "lucide-react";
-import { DynamicRecord, TableSortKey, TableSortDirection } from "../types/table";
+import { Table, Search, Download, Edit2, Save, X, ChevronUp, ChevronDown, CheckCircle, AlertCircle, Clock, RotateCcw } from "lucide-react";
+import { DynamicRecord, DynamicRecordStatus, TableSortKey, TableSortDirection } from "../types/table";
 import { initialDynamicRecords } from "../data/dynamicRecords";
 import { recordsToCSV, downloadFile, compareDynamicRecords } from "../utils/tableExport";
+
+const RECORDS_STORAGE_KEY = "automation-dynamic-records";
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const VALID_STATUSES: DynamicRecordStatus[] = ["Active", "Pending", "Inactive"];
+
+function isDynamicRecord(value: unknown): value is DynamicRecord {
+  if (!value || typeof value !== "object") return false;
+  const r = value as Record<string, unknown>;
+  return (
+    typeof r.id === "string" &&
+    typeof r.name === "string" &&
+    typeof r.email === "string" &&
+    typeof r.role === "string" &&
+    typeof r.joinDate === "string" &&
+    VALID_STATUSES.includes(r.status as DynamicRecordStatus)
+  );
+}
+
+function loadRecords(): DynamicRecord[] {
+  try {
+    const saved = localStorage.getItem(RECORDS_STORAGE_KEY);
+    if (saved) {
+      const parsed: unknown = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(isDynamicRecord)) return parsed;
+    }
+  } catch (e) {
+    // corrupt storage: fall back to seed data
+  }
+  return initialDynamicRecords;
+}
 
 export default function DynamicTablesPage() {
   const { showToast, darkMode } = useApp();
 
-  const [records, setRecords] = useState<DynamicRecord[]>(initialDynamicRecords);
+  const [records, setRecords] = useState<DynamicRecord[]>(loadRecords);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [sortKey, setSortKey] = useState<TableSortKey>("id");
@@ -26,8 +56,14 @@ export default function DynamicTablesPage() {
     status: "Active",
     joinDate: "",
   });
+  const [editError, setEditError] = useState<string>("");
 
-  // Handle Sorting
+  // Persist records so edits survive a reload (cleared via the Reset Data button)
+  useEffect(() => {
+    localStorage.setItem(RECORDS_STORAGE_KEY, JSON.stringify(records));
+  }, [records]);
+
+  // Handle Sorting (always return to the first page so the result is predictable)
   function handleSort(key: TableSortKey) {
     if (sortKey === key) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
@@ -35,66 +71,101 @@ export default function DynamicTablesPage() {
       setSortKey(key);
       setSortDirection("asc");
     }
+    setCurrentPage(1);
   }
 
   // Filter and Sort Data
   const filteredRecords = useMemo(() => {
-    return records.filter((rec) => {
-      const matchesSearch =
-        rec.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        rec.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        rec.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        rec.role.toLowerCase().includes(searchQuery.toLowerCase());
+    const query = searchQuery.trim().toLowerCase();
+    return records
+      .filter((rec) => {
+        const matchesSearch =
+          rec.id.toLowerCase().includes(query) ||
+          rec.name.toLowerCase().includes(query) ||
+          rec.email.toLowerCase().includes(query) ||
+          rec.role.toLowerCase().includes(query);
 
-      const matchesStatus = statusFilter === "All" || rec.status === statusFilter;
+        const matchesStatus = statusFilter === "All" || rec.status === statusFilter;
 
-      return matchesSearch && matchesStatus;
-    }).sort((a, b) => {
-      let valA = a[sortKey];
-      let valB = b[sortKey];
-      if (typeof valA === "string" && typeof valB === "string") {
-        return sortDirection === "asc"
-          ? valA.localeCompare(valB)
-          : valB.localeCompare(valA);
-      }
-      return 0;
-    });
+        return matchesSearch && matchesStatus;
+      })
+      .sort((a, b) => compareDynamicRecords(a, b, sortKey, sortDirection));
   }, [records, searchQuery, statusFilter, sortKey, sortDirection]);
 
-  // Pagination
-  const totalPages = Math.ceil(filteredRecords.length / pageSize) || 1;
+  // Pagination (clamp so deleting/filtering can never leave us on a page that no longer exists)
+  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
   const paginatedRecords = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
+    const start = (safePage - 1) * pageSize;
     return filteredRecords.slice(start, start + pageSize);
-  }, [filteredRecords, currentPage, pageSize]);
+  }, [filteredRecords, safePage, pageSize]);
 
-  // Export CSV
+  // Drop an in-progress edit if its row is no longer visible (page, sort or filter changed)
+  useEffect(() => {
+    if (editingId && !paginatedRecords.some((r) => r.id === editingId)) {
+      setEditingId(null);
+      setEditError("");
+    }
+  }, [paginatedRecords, editingId]);
+
+  function startEdit(rec: DynamicRecord) {
+    setEditingId(rec.id);
+    setEditForm(rec);
+    setEditError("");
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditError("");
+  }
+
+  function saveEdit(id: string) {
+    const name = editForm.name.trim();
+    const email = editForm.email.trim();
+    const role = editForm.role.trim();
+
+    if (!name) return setEditError("Name is required");
+    if (!email) return setEditError("Email is required");
+    if (!EMAIL_PATTERN.test(email)) return setEditError("Enter a valid email address");
+    if (!role) return setEditError("Role is required");
+    if (!editForm.joinDate) return setEditError("Join date is required");
+    if (records.some((r) => r.id !== id && r.email.toLowerCase() === email.toLowerCase())) {
+      return setEditError("Email already exists");
+    }
+
+    const updated: DynamicRecord = { ...editForm, id, name, email, role };
+    setRecords((prev) => prev.map((r) => (r.id === id ? updated : r)));
+    setEditingId(null);
+    setEditError("");
+    showToast(`Updated record ${id} successfully`, "success");
+  }
+
+  function resetData() {
+    setRecords(initialDynamicRecords);
+    setSearchQuery("");
+    setStatusFilter("All");
+    setSortKey("id");
+    setSortDirection("asc");
+    setCurrentPage(1);
+    cancelEdit();
+    showToast("Table data reset to defaults", "info");
+  }
+
+  // Export CSV (exports the full filtered/sorted set, not just the current page)
   function exportCSV() {
-    const headers = ["ID", "Full Name", "Email", "Role", "Status", "Join Date"];
-    const rows = filteredRecords.map((r) => [r.id, r.name, r.email, r.role, r.status, r.joinDate]);
-    const csvContent = [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "dynamic_web_tables_export.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast("Exported table data to CSV successfully!", "success");
+    downloadFile(recordsToCSV(filteredRecords), "dynamic_web_tables_export.csv", "text/csv");
+    showToast(`Exported ${filteredRecords.length} record(s) to CSV successfully!`, "success");
   }
 
   // Export JSON
   function exportJSON() {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(filteredRecords, null, 2));
-    const link = document.createElement("a");
-    link.href = dataStr;
-    link.setAttribute("download", "dynamic_web_tables_export.json");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast("Exported table data to JSON successfully!", "success");
+    downloadFile(JSON.stringify(filteredRecords, null, 2), "dynamic_web_tables_export.json", "application/json");
+    showToast(`Exported ${filteredRecords.length} record(s) to JSON successfully!`, "success");
+  }
+
+  function ariaSortFor(key: TableSortKey): "ascending" | "descending" | "none" {
+    if (sortKey !== key) return "none";
+    return sortDirection === "asc" ? "ascending" : "descending";
   }
 
   return (
@@ -109,7 +180,26 @@ export default function DynamicTablesPage() {
           </p>
         </div>
 
-        <div className="actions" style={{ display: "flex", gap: "10px" }}>
+        <div className="actions" style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          <button
+            data-testid="reset-table-data-btn"
+            onClick={resetData}
+            title="Restore the original sample records"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "transparent",
+              color: darkMode ? "#94a3b8" : "#64748b",
+              fontWeight: 600,
+              padding: "10px 16px",
+              borderRadius: "12px",
+              cursor: "pointer",
+              border: darkMode ? "1px solid #334155" : "1px solid #cbd5e1",
+            }}
+          >
+            <RotateCcw size={16} /> Reset Data
+          </button>
           <button
             data-testid="export-csv-btn"
             onClick={exportCSV}
@@ -250,47 +340,47 @@ export default function DynamicTablesPage() {
           background: darkMode ? "#1e293b" : "#ffffff",
           border: darkMode ? "1px solid #334155" : "1px solid #e6ebf3",
           borderRadius: "16px",
-          overflow: "x-auto",
+          overflowX: "auto",
           boxShadow: darkMode ? "0 10px 30px rgba(0,0,0,0.3)" : "0 10px 30px rgba(15, 23, 42, 0.06)",
         }}
       >
-        <table>
+        <table data-testid="dynamic-web-table">
           <thead>
             <tr>
-              <th data-testid="sort-header-id" onClick={() => handleSort("id")} style={{ cursor: "pointer", userSelect: "none" }}>
+              <th data-testid="sort-header-id" aria-sort={ariaSortFor("id")} onClick={() => handleSort("id")} style={{ cursor: "pointer", userSelect: "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <span>User ID</span>
                   {sortKey === "id" && (sortDirection === "asc" ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
                 </div>
               </th>
-              <th data-testid="sort-header-name" onClick={() => handleSort("name")} style={{ cursor: "pointer", userSelect: "none" }}>
+              <th data-testid="sort-header-name" aria-sort={ariaSortFor("name")} onClick={() => handleSort("name")} style={{ cursor: "pointer", userSelect: "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <span>Full Name & Email</span>
                   {sortKey === "name" && (sortDirection === "asc" ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
                 </div>
               </th>
-              <th data-testid="sort-header-role" onClick={() => handleSort("role")} style={{ cursor: "pointer", userSelect: "none" }}>
+              <th data-testid="sort-header-role" aria-sort={ariaSortFor("role")} onClick={() => handleSort("role")} style={{ cursor: "pointer", userSelect: "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <span>Role / Title</span>
                   {sortKey === "role" && (sortDirection === "asc" ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
                 </div>
               </th>
-              <th data-testid="sort-header-status" onClick={() => handleSort("status")} style={{ cursor: "pointer", userSelect: "none" }}>
+              <th data-testid="sort-header-status" aria-sort={ariaSortFor("status")} onClick={() => handleSort("status")} style={{ cursor: "pointer", userSelect: "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <span>Status</span>
                   {sortKey === "status" && (sortDirection === "asc" ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
                 </div>
               </th>
-              <th data-testid="sort-header-joindate" onClick={() => handleSort("joinDate")} style={{ cursor: "pointer", userSelect: "none" }}>
+              <th data-testid="sort-header-joindate" aria-sort={ariaSortFor("joinDate")} onClick={() => handleSort("joinDate")} style={{ cursor: "pointer", userSelect: "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <span>Join Date</span>
                   {sortKey === "joinDate" && (sortDirection === "asc" ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
                 </div>
               </th>
-              <th style={{ textAlign: "right" }}>Actions</th>
+              <th data-testid="sort-header-actions" style={{ textAlign: "right" }}>Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody data-testid="table-body">
             {paginatedRecords.length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ textAlign: "center", padding: "40px", color: darkMode ? "#94a3b8" : "#64748b" }} data-testid="table-empty-state">
@@ -321,6 +411,15 @@ export default function DynamicTablesPage() {
                             onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                             style={{ padding: "6px 10px", borderRadius: "8px", fontSize: "13px" }}
                           />
+                          {editError && (
+                            <div
+                              role="alert"
+                              data-testid={`edit-error-${rec.id}`}
+                              style={{ fontSize: "12px", fontWeight: 600, color: darkMode ? "#f87171" : "#b91c1c" }}
+                            >
+                              {editError}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div>
@@ -348,7 +447,7 @@ export default function DynamicTablesPage() {
                         <select
                           data-testid={`edit-select-status-${rec.id}`}
                           value={editForm.status}
-                          onChange={(e) => setEditForm({ ...editForm, status: e.target.value as any })}
+                          onChange={(e) => setEditForm({ ...editForm, status: e.target.value as DynamicRecordStatus })}
                           style={{ padding: "6px 10px", borderRadius: "8px", fontSize: "13px" }}
                         >
                           <option value="Active">Active</option>
@@ -407,11 +506,7 @@ export default function DynamicTablesPage() {
                         <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
                           <button
                             data-testid={`save-btn-${rec.id}`}
-                            onClick={() => {
-                              setRecords(records.map((r) => (r.id === rec.id ? editForm : r)));
-                              setEditingId(null);
-                              showToast(`Updated record ${rec.id} successfully`, "success");
-                            }}
+                            onClick={() => saveEdit(rec.id)}
                             style={{ background: "#10b981", color: "white", padding: "6px 10px", borderRadius: "8px", display: "flex", alignItems: "center", gap: "4px", fontSize: "12px" }}
                             title="Save Changes"
                           >
@@ -419,7 +514,7 @@ export default function DynamicTablesPage() {
                           </button>
                           <button
                             data-testid={`cancel-btn-${rec.id}`}
-                            onClick={() => setEditingId(null)}
+                            onClick={cancelEdit}
                             style={{ background: darkMode ? "#475569" : "#cbd5e1", color: darkMode ? "white" : "#1e293b", padding: "6px 10px", borderRadius: "8px", display: "flex", alignItems: "center", gap: "4px", fontSize: "12px" }}
                             title="Cancel"
                           >
@@ -429,10 +524,7 @@ export default function DynamicTablesPage() {
                       ) : (
                         <button
                           data-testid={`edit-btn-${rec.id}`}
-                          onClick={() => {
-                            setEditingId(rec.id);
-                            setEditForm(rec);
-                          }}
+                          onClick={() => startEdit(rec)}
                           style={{ background: "rgba(99, 102, 241, 0.15)", color: "#6366f1", padding: "6px 12px", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600 }}
                           title="Edit Row"
                         >
@@ -462,15 +554,15 @@ export default function DynamicTablesPage() {
         }}
       >
         <div style={{ fontSize: "13px", color: darkMode ? "#94a3b8" : "#64748b" }} data-testid="pagination-summary">
-          Showing {filteredRecords.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} to{" "}
-          {Math.min(currentPage * pageSize, filteredRecords.length)} of {filteredRecords.length} records
+          Showing {filteredRecords.length === 0 ? 0 : (safePage - 1) * pageSize + 1} to{" "}
+          {Math.min(safePage * pageSize, filteredRecords.length)} of {filteredRecords.length} records
         </div>
 
-        <div className="pagination-controls" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+        <div className="pagination-controls" data-testid="pagination-controls" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <button
             data-testid="pagination-prev"
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            disabled={safePage === 1}
+            onClick={() => setCurrentPage(Math.max(safePage - 1, 1))}
             style={{
               padding: "8px 14px",
               borderRadius: "10px",
@@ -488,14 +580,15 @@ export default function DynamicTablesPage() {
             <button
               key={num}
               data-testid={`pagination-page-${num}`}
+              aria-current={safePage === num ? "page" : undefined}
               onClick={() => setCurrentPage(num)}
               style={{
                 width: "36px",
                 height: "36px",
                 borderRadius: "10px",
-                background: currentPage === num ? "#6366f1" : darkMode ? "#1e293b" : "#ffffff",
-                border: currentPage === num ? "1px solid #6366f1" : darkMode ? "1px solid #334155" : "1px solid #cbd5e1",
-                color: currentPage === num ? "#ffffff" : darkMode ? "#f8fafc" : "#1e293b",
+                background: safePage === num ? "#6366f1" : darkMode ? "#1e293b" : "#ffffff",
+                border: safePage === num ? "1px solid #6366f1" : darkMode ? "1px solid #334155" : "1px solid #cbd5e1",
+                color: safePage === num ? "#ffffff" : darkMode ? "#f8fafc" : "#1e293b",
                 fontWeight: 700,
                 fontSize: "13px",
                 cursor: "pointer",
@@ -507,8 +600,8 @@ export default function DynamicTablesPage() {
 
           <button
             data-testid="pagination-next"
-            disabled={currentPage === totalPages || totalPages === 0}
-            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+            disabled={safePage === totalPages}
+            onClick={() => setCurrentPage(Math.min(safePage + 1, totalPages))}
             style={{
               padding: "8px 14px",
               borderRadius: "10px",

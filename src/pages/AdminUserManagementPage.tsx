@@ -1,6 +1,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { AppUser, Role, UserStatus } from "../types/user";
+import CustomSelect from "../components/CustomSelect";
 
 type ExtendedUser = AppUser & {
   locked?: boolean;
@@ -946,21 +947,24 @@ function handleGenerateTestUsers() {
       <div className="pagination" data-testid="user-management-pagination">
         <div className="page-size-box">
           <span>Show</span>
-          <select
-            data-testid="user-management-page-size-dropdown"
+          <CustomSelect
+            testId="user-management-page-size-dropdown"
+            ariaLabel="Users per page"
             value={pageSize}
-            onChange={(event) => {
-              setPageSize(Number(event.target.value));
+            onChange={(val) => {
+              setPageSize(Number(val));
               setPage(1);
             }}
-          >
-            <option value={5}>5 users</option>
-            <option value={10}>10 users</option>
-            <option value={20}>20 users</option>
-            <option value={30}>30 users</option>
-            <option value={40}>40 users</option>
-            <option value={50}>50 users</option>
-          </select>
+            triggerStyle={{ minWidth: "120px", borderRadius: "10px", padding: "10px 12px" }}
+            options={[
+              { value: 5, label: "5 users" },
+              { value: 10, label: "10 users" },
+              { value: 20, label: "20 users" },
+              { value: 30, label: "30 users" },
+              { value: 40, label: "40 users" },
+              { value: 50, label: "50 users" },
+            ]}
+          />
         </div>
 
         <div className="pagination-controls">
@@ -1040,43 +1044,52 @@ function handleGenerateTestUsers() {
             )}
 
             <label>Role</label>
-            <select
-              data-testid={modal === "create" ? "create-user-role-dropdown" : "edit-user-role-dropdown"}
+            <CustomSelect
+              testId={modal === "create" ? "create-user-role-dropdown" : "edit-user-role-dropdown"}
+              ariaLabel="Role"
+              fullWidth
+              style={{ margin: "8px 0 12px" }}
+              triggerStyle={{ padding: "11px 14px", borderRadius: "10px" }}
               value={form.role}
-              onChange={(event) =>
-                setForm({ ...form, role: event.target.value as Role })
-              }
-            >
-              {loggedInIsSuperUser && <option>Super User</option>}
-              <option>Admin User</option>
-              <option>Test User</option>
-            </select>
+              onChange={(val) => setForm({ ...form, role: val as Role })}
+              options={[
+                ...(loggedInIsSuperUser ? [{ value: "Super User" as Role, label: "Super User" }] : []),
+                { value: "Admin User" as Role, label: "Admin User" },
+                { value: "Test User" as Role, label: "Test User" },
+              ]}
+            />
 
             <label>Status</label>
-            <select
-              data-testid={modal === "create" ? "create-user-status-dropdown" : "edit-user-status-dropdown"}
+            <CustomSelect
+              testId={modal === "create" ? "create-user-status-dropdown" : "edit-user-status-dropdown"}
+              ariaLabel="Status"
+              fullWidth
+              style={{ margin: "8px 0 12px" }}
+              triggerStyle={{ padding: "11px 14px", borderRadius: "10px" }}
               value={form.status}
-              onChange={(event) =>
-                setForm({ ...form, status: event.target.value as UserStatus })
-              }
-            >
-              <option>Active</option>
-              <option>Disabled</option>
-            </select>
+              onChange={(val) => setForm({ ...form, status: val as UserStatus })}
+              options={[
+                { value: "Active" as UserStatus, label: "Active" },
+                { value: "Disabled" as UserStatus, label: "Disabled" },
+              ]}
+            />
 
             <label>User Group</label>
-            <select
-              data-testid={modal === "create" ? "create-user-group-dropdown" : "edit-user-group-dropdown"}
+            <CustomSelect
+              testId={modal === "create" ? "create-user-group-dropdown" : "edit-user-group-dropdown"}
+              ariaLabel="User Group"
+              fullWidth
+              style={{ margin: "8px 0 12px" }}
+              triggerStyle={{ padding: "11px 14px", borderRadius: "10px" }}
               value={form.userGroup}
-              onChange={(event) =>
-                setForm({ ...form, userGroup: event.target.value })
-              }
-            >
-              <option>Engineering</option>
-              <option>Operations</option>
-              <option>Management</option>
-              <option>Support</option>
-            </select>
+              onChange={(val) => setForm({ ...form, userGroup: val })}
+              options={[
+                { value: "Engineering", label: "Engineering" },
+                { value: "Operations", label: "Operations" },
+                { value: "Management", label: "Management" },
+                { value: "Support", label: "Support" },
+              ]}
+            />
 
             <div className="right">
               <button

@@ -1,5 +1,7 @@
 import { useState, useRef, ChangeEvent } from "react";
+import { Check } from "lucide-react";
 import { useApp } from "../context/AppContext";
+import CustomSelect from "../components/CustomSelect";
 
 type ActionLog = {
   id: string;
@@ -335,19 +337,23 @@ export default function AutomationLabPage() {
                   <h4>Dropdown Select</h4>
                   <small className="muted">Single-select options menu</small>
                 </div>
-                <select
+                <CustomSelect
                   id="lab-dropdown-select"
-                  data-testid="lab-dropdown-select"
+                  testId="lab-dropdown-select"
+                  ariaLabel="Dropdown Select"
+                  fullWidth
                   value={dropdownValue}
-                  onChange={(e) => {
-                    setDropdownValue(e.target.value);
-                    logAction("Dropdown Change", `Selected framework: ${e.target.value}`, "info", { value: e.target.value });
+                  onChange={(val) => {
+                    setDropdownValue(val);
+                    logAction("Dropdown Change", `Selected framework: ${val}`, "info", { value: val });
                   }}
-                >
-                  <option value="Selenium">Selenium WebDriver</option>
-                  <option value="Playwright">Playwright</option>
-                  <option value="Cypress">Cypress</option>
-                </select>
+                  triggerStyle={{ padding: "11px 16px", borderRadius: "12px" }}
+                  options={[
+                    { value: "Selenium", label: "Selenium WebDriver" },
+                    { value: "Playwright", label: "Playwright" },
+                    { value: "Cypress", label: "Cypress" },
+                  ]}
+                />
               </div>
 
               <div className="lab-form-group">
@@ -355,23 +361,43 @@ export default function AutomationLabPage() {
                   <h4>Multi-Select List</h4>
                   <small className="muted">Multi-selection options list</small>
                 </div>
-                <select
+                <ul
                   id="lab-multiselect"
                   data-testid="lab-multiselect"
-                  multiple
-                  value={multiSelectValues}
-                  onChange={(e) => {
-                    const options = Array.from(e.target.selectedOptions, (option) => option.value);
-                    setMultiSelectValues(options);
-                    logAction("Multi-Select Change", `Selected items: ${options.join(", ")}`, "info", { values: options });
-                  }}
+                  role="listbox"
+                  aria-multiselectable="true"
+                  aria-label="Multi-Select List"
+                  className="custom-multiselect-list"
                 >
-                  <option value="Selenium">Selenium</option>
-                  <option value="Playwright">Playwright</option>
-                  <option value="Cypress">Cypress</option>
-                  <option value="Appium">Appium</option>
-                </select>
-                <small className="muted">Hold Ctrl/Cmd to select multiple</small>
+                  {[
+                    { value: "Selenium", label: "Selenium" },
+                    { value: "Playwright", label: "Playwright" },
+                    { value: "Cypress", label: "Cypress" },
+                    { value: "Appium", label: "Appium" },
+                  ].map((item) => {
+                    const isSelected = multiSelectValues.includes(item.value);
+                    return (
+                      <li
+                        key={item.value}
+                        role="option"
+                        aria-selected={isSelected}
+                        data-testid={`lab-multiselect-option-${item.value.toLowerCase()}`}
+                        className={`theme-dropdown-option${isSelected ? " selected" : ""}`}
+                        onClick={() => {
+                          const next = isSelected
+                            ? multiSelectValues.filter((v) => v !== item.value)
+                            : [...multiSelectValues, item.value];
+                          setMultiSelectValues(next);
+                          logAction("Multi-Select Change", `Selected items: ${next.join(", ") || "None"}`, "info", { values: next });
+                        }}
+                      >
+                        <span>{item.label}</span>
+                        {isSelected && <Check size={16} className="theme-dropdown-check" />}
+                      </li>
+                    );
+                  })}
+                </ul>
+                <small className="muted">Click options to toggle multi-selection</small>
               </div>
 
               <div className="lab-form-group">

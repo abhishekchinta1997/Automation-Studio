@@ -4,6 +4,7 @@ import { Table, Search, Download, Edit2, Save, X, ChevronUp, ChevronDown, CheckC
 import { DynamicRecord, DynamicRecordStatus, TableSearchMode, TableSortKey, TableSortDirection } from "../types/table";
 import { initialDynamicRecords } from "../data/dynamicRecords";
 import { recordsToCSV, downloadFile, compareDynamicRecords } from "../utils/tableExport";
+import CustomSelect from "../components/CustomSelect";
 
 const RECORDS_STORAGE_KEY = "automation-dynamic-records";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -524,6 +525,7 @@ export default function DynamicTablesPage() {
               data-testid="table-global-search-input"
               placeholder="Search ID, name, email, role..."
               value={searchQuery}
+              style={{ paddingLeft: "44px" }}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
@@ -531,51 +533,41 @@ export default function DynamicTablesPage() {
             />
           </div>
 
-          <select
-            data-testid="table-status-filter-select"
+          <CustomSelect
+            testId="table-status-filter-select"
+            ariaLabel="Filter by status"
             value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
+            onChange={(val) => {
+              setStatusFilter(val);
               setCurrentPage(1);
             }}
-            style={{
-              width: "160px",
-              backgroundColor: darkMode ? "#0f172a" : "#ffffff",
-              color: darkMode ? "#f1f5f9" : "#0f172a",
-              border: darkMode ? "1px solid #334155" : "1px solid #cbd5e1",
-              borderRadius: "12px",
-              padding: "10px 40px 10px 14px",
-            }}
-          >
-            <option value="All">All Statuses</option>
-            <option value="Active">Active</option>
-            <option value="Pending">Pending</option>
-            <option value="Inactive">Inactive</option>
-          </select>
+            triggerStyle={{ minWidth: "160px", borderRadius: "12px", padding: "10px 14px" }}
+            options={[
+              { value: "All", label: "All Statuses" },
+              { value: "Active", label: "Active" },
+              { value: "Pending", label: "Pending" },
+              { value: "Inactive", label: "Inactive" },
+            ]}
+          />
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <span style={{ fontSize: "13px", fontWeight: 600, color: darkMode ? "#94a3b8" : "#64748b" }}>Show:</span>
-          <select
-            data-testid="table-page-size-select"
+          <CustomSelect
+            testId="table-page-size-select"
+            ariaLabel="Rows per page"
             value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
+            onChange={(val) => {
+              setPageSize(Number(val));
               setCurrentPage(1);
             }}
-            style={{
-              width: "115px",
-              backgroundColor: darkMode ? "#0f172a" : "#ffffff",
-              color: darkMode ? "#f1f5f9" : "#0f172a",
-              border: darkMode ? "1px solid #334155" : "1px solid #cbd5e1",
-              borderRadius: "12px",
-              padding: "8px 36px 8px 12px",
-            }}
-          >
-            <option value={5}>5 rows</option>
-            <option value={10}>10 rows</option>
-            <option value={25}>25 rows</option>
-          </select>
+            triggerStyle={{ minWidth: "115px", borderRadius: "12px", padding: "9px 12px" }}
+            options={[
+              { value: 5, label: "5 rows" },
+              { value: 10, label: "10 rows" },
+              { value: 25, label: "25 rows" },
+            ]}
+          />
           <span style={{ fontSize: "13px", color: darkMode ? "#94a3b8" : "#64748b", fontWeight: 500 }} data-testid="table-record-count-label">
             ({filteredRecords.length} total)
           </span>
@@ -694,16 +686,18 @@ export default function DynamicTablesPage() {
 
                     <td data-testid={`cell-status-${rec.id}`}>
                       {isEditing ? (
-                        <select
-                          data-testid={`edit-select-status-${rec.id}`}
+                        <CustomSelect
+                          testId={`edit-select-status-${rec.id}`}
+                          ariaLabel="Edit status"
                           value={editForm.status}
-                          onChange={(e) => setEditForm({ ...editForm, status: e.target.value as DynamicRecordStatus })}
-                          style={{ padding: "6px 34px 6px 10px", borderRadius: "8px", fontSize: "13px" }}
-                        >
-                          <option value="Active">Active</option>
-                          <option value="Pending">Pending</option>
-                          <option value="Inactive">Inactive</option>
-                        </select>
+                          onChange={(val) => setEditForm({ ...editForm, status: val as DynamicRecordStatus })}
+                          triggerStyle={{ minWidth: "124px", padding: "6px 10px", borderRadius: "8px", fontSize: "13px" }}
+                          options={[
+                            { value: "Active", label: "Active" },
+                            { value: "Pending", label: "Pending" },
+                            { value: "Inactive", label: "Inactive" },
+                          ]}
+                        />
                       ) : (
                         <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                           <span

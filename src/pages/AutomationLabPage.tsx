@@ -25,7 +25,7 @@ const initialTableData: TableRow[] = [
 ];
 
 export default function AutomationLabPage() {
-  const { showToast } = useApp();
+  const { showToast, darkMode } = useApp();
 
   const [activeTab, setActiveTab] = useState<"forms" | "tables" | "async" | "frames" | "notifications">("forms");
   const [inspectorVisible, setInspectorVisible] = useState(true);
@@ -688,7 +688,7 @@ export default function AutomationLabPage() {
 
               <div className="lab-form-group">
                 <label>Simulated Iframe Document</label>
-                <div className="iframe-box" data-testid="lab-iframe-container" style={{ border: "2px dashed #6046e8", borderRadius: "14px", padding: "16px", background: "#f8faff" }}>
+                <div className="iframe-box" data-testid="lab-iframe-container" style={{ border: "2px dashed #6366f1", borderRadius: "14px", padding: "16px", background: darkMode ? "#0f172a" : "#f8faff", color: darkMode ? "#f1f5f9" : "#0f172a" }}>
                   <p className="muted" style={{ margin: "0 0 10px" }}>[Iframe Context Window]</p>
                   <button
                     data-testid="lab-iframe-btn"
@@ -704,7 +704,7 @@ export default function AutomationLabPage() {
 
               <div className="lab-form-group" style={{ marginTop: "16px" }}>
                 <label>Shadow DOM Root Container</label>
-                <div className="shadow-box" data-testid="lab-shadow-container" style={{ border: "2px solid #4f35d6", borderRadius: "14px", padding: "16px", background: "#f5f3ff" }}>
+                <div className="shadow-box" data-testid="lab-shadow-container" style={{ border: "2px solid #6366f1", borderRadius: "14px", padding: "16px", background: darkMode ? "#0f172a" : "#f5f3ff", color: darkMode ? "#f1f5f9" : "#0f172a" }}>
                   <p className="muted" style={{ margin: "0 0 10px" }}>[Closed/Open Shadow Root]</p>
                   <button
                     data-testid="lab-shadow-btn"
@@ -883,7 +883,7 @@ export default function AutomationLabPage() {
             <div style={{ fontSize: "42px", marginBottom: "10px" }}></div>
             <h2>Message Sent Successfully!</h2>
             <p className="muted" style={{ margin: "10px 0" }}>Your message was transmitted and confirmed:</p>
-            <div style={{ background: "#f8faff", border: "1px solid #e6ebf3", padding: "12px", borderRadius: "10px", fontWeight: "700", color: "#172033", margin: "16px 0" }}>
+            <div style={{ background: darkMode ? "#0f172a" : "#f8faff", border: darkMode ? "1px solid #334155" : "1px solid #e2e8f0", padding: "12px", borderRadius: "10px", fontWeight: "700", color: darkMode ? "#f1f5f9" : "#0f172a", margin: "16px 0" }}>
               "{sentMessageModal}"
             </div>
             <div className="right" style={{ justifyContent: "center" }}>

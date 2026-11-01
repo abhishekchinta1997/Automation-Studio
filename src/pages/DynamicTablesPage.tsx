@@ -281,11 +281,11 @@ export default function DynamicTablesPage() {
             }}
             style={{
               width: "160px",
-              background: darkMode ? "rgba(15, 23, 42, 0.8)" : "#f8fafc",
-              color: darkMode ? "#f8fafc" : "#0f172a",
-              border: darkMode ? "1px solid #475569" : "1px solid #cbd5e1",
+              backgroundColor: darkMode ? "#0f172a" : "#ffffff",
+              color: darkMode ? "#f1f5f9" : "#0f172a",
+              border: darkMode ? "1px solid #334155" : "1px solid #cbd5e1",
               borderRadius: "12px",
-              padding: "10px 14px",
+              padding: "10px 40px 10px 14px",
             }}
           >
             <option value="All">All Statuses</option>
@@ -305,12 +305,12 @@ export default function DynamicTablesPage() {
               setCurrentPage(1);
             }}
             style={{
-              width: "90px",
-              background: darkMode ? "rgba(15, 23, 42, 0.8)" : "#f8fafc",
-              color: darkMode ? "#f8fafc" : "#0f172a",
-              border: darkMode ? "1px solid #475569" : "1px solid #cbd5e1",
+              width: "115px",
+              backgroundColor: darkMode ? "#0f172a" : "#ffffff",
+              color: darkMode ? "#f1f5f9" : "#0f172a",
+              border: darkMode ? "1px solid #334155" : "1px solid #cbd5e1",
               borderRadius: "12px",
-              padding: "8px 12px",
+              padding: "8px 36px 8px 12px",
             }}
           >
             <option value={5}>5 rows</option>
@@ -439,7 +439,7 @@ export default function DynamicTablesPage() {
                           data-testid={`edit-select-status-${rec.id}`}
                           value={editForm.status}
                           onChange={(e) => setEditForm({ ...editForm, status: e.target.value as DynamicRecordStatus })}
-                          style={{ padding: "6px 10px", borderRadius: "8px", fontSize: "13px" }}
+                          style={{ padding: "6px 34px 6px 10px", borderRadius: "8px", fontSize: "13px" }}
                         >
                           <option value="Active">Active</option>
                           <option value="Pending">Pending</option>

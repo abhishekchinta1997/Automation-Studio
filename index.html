@@ -3,9 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>Automation Studio</title>
-    <script type="module" crossorigin src="/Automation-Studio/assets/index-DpDORO6D.js"></script>
-    <link rel="stylesheet" crossorigin href="/Automation-Studio/assets/index-BE3Ko0cu.css">
+    <script>
+      // Apply the theme before first paint so there is no white/dark flash.
+      // "true"/"false" in localStorage is a manual override; otherwise follow the OS.
+      (function () {
+        try {
+          var saved = localStorage.getItem("automation-dark-mode");
+          var dark =
+            saved === "true" ||
+            (saved !== "false" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var root = document.documentElement;
+          if (dark) root.classList.add("dark");
+          root.style.colorScheme = dark ? "dark" : "light";
+          root.setAttribute("data-theme", dark ? "dark" : "light");
+          root.setAttribute("data-theme-source", saved === "true" || saved === "false" ? "manual" : "system");
+        } catch (e) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="/Automation-Studio/assets/index-CtV-qig2.js"></script>
+    <link rel="stylesheet" crossorigin href="/Automation-Studio/assets/index-DdeEusN6.css">
   </head>
   <body>
     <div id="root"></div>

@@ -256,27 +256,18 @@ export default function DynamicTablesPage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: "280px" }}>
-          <div style={{ position: "relative", width: "100%", maxWidth: "380px" }}>
-            <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: darkMode ? "#94a3b8" : "#64748b", display: "flex" }}>
+          <div className="table-search-input-wrapper">
+            <span className="table-search-input-icon">
               <Search size={18} />
             </span>
             <input
+              className="table-search-input"
               data-testid="table-global-search-input"
               placeholder="Search ID, name, email, role..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
-              }}
-              style={{
-                width: "100%",
-                paddingLeft: "42px",
-                background: darkMode ? "rgba(15, 23, 42, 0.8)" : "#f8fafc",
-                color: darkMode ? "#f8fafc" : "#0f172a",
-                border: darkMode ? "1px solid #475569" : "1px solid #cbd5e1",
-                borderRadius: "12px",
-                paddingTop: "10px",
-                paddingBottom: "10px",
               }}
             />
           </div>

@@ -347,7 +347,6 @@ export default function AutomationLabPage() {
                   <option value="Selenium">Selenium WebDriver</option>
                   <option value="Playwright">Playwright</option>
                   <option value="Cypress">Cypress</option>
-                  <option value="Puppeteer">Puppeteer</option>
                 </select>
               </div>
 

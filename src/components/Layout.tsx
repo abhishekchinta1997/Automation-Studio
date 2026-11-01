@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
-import SystemThemeButton from "./SystemThemeButton";
-import { Home, Users, FlaskConical, Table, Sun, Moon, LogOut } from "lucide-react";
+import ThemeSelect from "./ThemeSelect";
+import { Home, Users, FlaskConical, Table, LogOut } from "lucide-react";
 
 export default function Layout() {
-  const { currentUser, logout, darkMode, toggleDarkMode, toast } = useApp();
+  const { currentUser, logout, darkMode, toast } = useApp();
   const navigate = useNavigate();
   const isAdmin = currentUser?.role === "Admin User" || currentUser?.role === "Super User";
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -131,28 +131,7 @@ export default function Layout() {
           </div>
 
           <div className="topbar-actions" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <SystemThemeButton />
-            <button
-              className="theme-toggle-button"
-              data-testid="dark-mode-toggle"
-              onClick={toggleDarkMode}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "8px 14px",
-                borderRadius: "8px",
-                fontWeight: 600,
-                fontSize: "14px",
-                cursor: "pointer",
-                background: darkMode ? "rgba(255, 255, 255, 0.1)" : "#f1f5f9",
-                color: darkMode ? "#ffffff" : "#1e293b",
-                border: darkMode ? "1px solid rgba(255, 255, 255, 0.2)" : "1px solid #cbd5e1",
-              }}
-            >
-              {darkMode ? <Sun size={16} color="#ffffff" /> : <Moon size={16} color="#1f2937" />}
-              <span style={{ color: darkMode ? "#ffffff" : "#1f2937" }}>{darkMode ? "Light Mode" : "Dark Mode"}</span>
-            </button>
+            <ThemeSelect />
 
             <button
               className="topbar-logout-button"

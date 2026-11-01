@@ -2382,3 +2382,15 @@ html.dark body {
 .theme-system-button:disabled {
   cursor: default;
 }
+
+/* Theme dropdown (System / Light / Dark) */
+.theme-select select,
+.dark .theme-select select {
+  width: auto !important;
+  min-width: 130px;
+  padding: 8px 40px 8px 38px !important;
+  border-radius: 8px !important;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}

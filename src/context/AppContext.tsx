@@ -37,7 +37,7 @@ interface AppContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   toggleDarkMode: () => void;
-  resetThemeToSystem: () => void;
+  setTheme: (preference: ThemePreference) => void;
   showToast: (message: string, type?: "success" | "error" | "info" | "warning") => void;
   createUser: (user: Omit<AppUser, "id" | "createdDate" | "lastLogin">) => string | null;
   updateUser: (id: string, changes: Partial<AppUser>) => void;
@@ -217,15 +217,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setThemePreference(next);
   }
 
-  // Remove the manual override and go back to following the OS setting.
-  function resetThemeToSystem() {
+  // Dropdown choice: "light"/"dark" are saved as a manual override, "system" clears it.
+  function setTheme(preference: ThemePreference) {
     try {
-      localStorage.removeItem(THEME_STORAGE_KEY);
+      if (preference === "system") localStorage.removeItem(THEME_STORAGE_KEY);
+      else localStorage.setItem(THEME_STORAGE_KEY, String(preference === "dark"));
     } catch (e) {
-      // ignore
+      // storage unavailable: still apply for this session
     }
-    setThemePreference("system");
-    setSystemDark(systemPrefersDark());
+    setThemePreference(preference);
+    if (preference === "system") setSystemDark(systemPrefersDark());
   }
 
   function createUser(user: Omit<AppUser, "id" | "createdDate" | "lastLogin">) {
@@ -300,7 +301,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     login,
     logout,
     toggleDarkMode,
-    resetThemeToSystem,
+    setTheme,
     showToast,
     createUser,
     updateUser,

@@ -1,11 +1,11 @@
 import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
-import SystemThemeButton from "../components/SystemThemeButton";
-import { Sun, Moon, Bot, Shield, Database, CheckSquare, Table as TableIcon, Eye, EyeOff } from "lucide-react";
+import ThemeSelect from "../components/ThemeSelect";
+import { Bot, Shield, Database, CheckSquare, Table as TableIcon, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
-  const { login, showToast, users, darkMode, toggleDarkMode } = useApp();
+  const { login, showToast, users, darkMode } = useApp();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -74,34 +74,7 @@ export default function LoginPage() {
         }}
       />
 
-      <SystemThemeButton style={{ position: "absolute", top: "20px", right: "170px", padding: "6px 12px", borderRadius: "12px", fontSize: "13px", zIndex: 50 }} />
-
-      <button
-        className="theme-toggle-button login-theme-toggle"
-        data-testid="dark-mode-toggle"
-        onClick={toggleDarkMode}
-        style={{
-          position: "absolute",
-          top: "20px",
-          right: "24px",
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          padding: "6px 12px",
-          borderRadius: "12px",
-          fontWeight: 600,
-          fontSize: "13px",
-          cursor: "pointer",
-          background: darkMode ? "rgba(255, 255, 255, 0.1)" : "#ffffff",
-          color: darkMode ? "#ffffff" : "#1e293b",
-          border: darkMode ? "1px solid rgba(255, 255, 255, 0.2)" : "1px solid #cbd5e1",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-          zIndex: 50,
-        }}
-      >
-        {darkMode ? <Sun size={15} color="#ffffff" /> : <Moon size={15} color="#1e293b" />}
-        <span style={{ color: darkMode ? "#ffffff" : "#1e293b" }}>{darkMode ? "Light Mode" : "Dark Mode"}</span>
-      </button>
+      <ThemeSelect style={{ position: "absolute", top: "20px", right: "24px", zIndex: 50 }} />
 
       <div
         style={{

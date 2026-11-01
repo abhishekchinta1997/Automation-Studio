@@ -2580,3 +2580,79 @@ html.dark body {
   font-size: 14px !important;
   border-radius: 12px !important;
 }
+
+/* Dynamic Web Tables: Advanced Filters Panel (Modern Slate Theme) */
+.dynamic-advanced-filters-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+
+.dark .dynamic-advanced-filters-card {
+  background: #0f172a !important;
+  border: 1px solid #1e293b !important;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.dynamic-advanced-filters-card h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.dark .dynamic-advanced-filters-card h2 {
+  color: #f8fafc;
+}
+
+.dynamic-advanced-filters-card .filter-panel {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+
+.dark .dynamic-advanced-filters-card .filter-panel {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+}
+
+.dynamic-advanced-filters-card .filter-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #0f172a;
+}
+
+.dark .dynamic-advanced-filters-card .filter-title {
+  color: #f1f5f9 !important;
+}
+
+.dynamic-advanced-filters-card .vertical-options label {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  user-select: none;
+}
+
+.dark .dynamic-advanced-filters-card .vertical-options label {
+  color: #e2e8f0 !important;
+}
+
+.dynamic-advanced-filters-card .vertical-options input[type="radio"],
+.dynamic-advanced-filters-card .vertical-options input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #6366f1;
+  cursor: pointer;
+}
+
+.dynamic-advanced-filters-card .compact-search-input {
+  max-width: 100%;
+  margin-top: 14px;
+}

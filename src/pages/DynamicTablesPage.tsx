@@ -1,13 +1,14 @@
 import { useState, useMemo, useEffect } from "react";
 import { useApp } from "../context/AppContext";
-import { Table, Search, Download, Edit2, Save, X, ChevronUp, ChevronDown, CheckCircle, AlertCircle, Clock, RotateCcw } from "lucide-react";
-import { DynamicRecord, DynamicRecordStatus, TableSortKey, TableSortDirection } from "../types/table";
+import { Table, Search, Download, Edit2, Save, X, ChevronUp, ChevronDown, CheckCircle, AlertCircle, Clock, RotateCcw, Lock } from "lucide-react";
+import { DynamicRecord, DynamicRecordStatus, TableSearchMode, TableSortKey, TableSortDirection } from "../types/table";
 import { initialDynamicRecords } from "../data/dynamicRecords";
 import { recordsToCSV, downloadFile, compareDynamicRecords } from "../utils/tableExport";
 
 const RECORDS_STORAGE_KEY = "automation-dynamic-records";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const VALID_STATUSES: DynamicRecordStatus[] = ["Active", "Pending", "Inactive"];
+const RECENT_RECORD_IDS = new Set(["REC-1022", "REC-1023", "REC-1024", "REC-1025", "REC-1026"]);
 
 function isDynamicRecord(value: unknown): value is DynamicRecord {
   if (!value || typeof value !== "object") return false;
@@ -22,17 +23,59 @@ function isDynamicRecord(value: unknown): value is DynamicRecord {
   );
 }
 
+// Hydrate any legacy localStorage records with lastLogin, locked, and fresh dates for the 5 recent seed records.
+function hydrateRecords(savedRecords: DynamicRecord[]): DynamicRecord[] {
+  const seedById = new Map(initialDynamicRecords.map((r) => [r.id, r]));
+  return savedRecords.map((rec) => {
+    const seed = seedById.get(rec.id);
+    if (!seed) {
+      return {
+        ...rec,
+        lastLogin: rec.lastLogin ?? "Never",
+        locked: Boolean(rec.locked),
+      };
+    }
+    const needsFreshRecentDate =
+      RECENT_RECORD_IDS.has(rec.id) && rec.joinDate.startsWith("2025-");
+    return {
+      ...rec,
+      joinDate: needsFreshRecentDate ? seed.joinDate : rec.joinDate,
+      lastLogin: rec.lastLogin ?? seed.lastLogin ?? "Never",
+      locked: typeof rec.locked === "boolean" ? rec.locked : Boolean(seed.locked),
+    };
+  });
+}
+
 function loadRecords(): DynamicRecord[] {
   try {
     const saved = localStorage.getItem(RECORDS_STORAGE_KEY);
     if (saved) {
       const parsed: unknown = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(isDynamicRecord)) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(isDynamicRecord)) {
+        return hydrateRecords(parsed);
+      }
     }
   } catch (e) {
     // corrupt storage: fall back to seed data
   }
   return initialDynamicRecords;
+}
+
+function getJoinTime(rec: DynamicRecord): number {
+  return new Date(rec.joinDate).getTime() || 0;
+}
+
+function isNeverLoggedIn(rec: DynamicRecord): boolean {
+  const val = String(rec.lastLogin ?? "").trim().toLowerCase();
+  return !val || val === "never" || val === "n/a" || val === "not logged in";
+}
+
+function matchesBySearchMode(values: string[], query: string, mode: TableSearchMode): boolean {
+  if (!query) return true;
+  const lowered = values.map((v) => v.toLowerCase());
+  if (mode === "exact") return lowered.some((v) => v === query);
+  if (mode === "starts") return lowered.some((v) => v.startsWith(query));
+  return lowered.some((v) => v.includes(query));
 }
 
 export default function DynamicTablesPage() {
@@ -46,6 +89,14 @@ export default function DynamicTablesPage() {
   const [pageSize, setPageSize] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
+  // Advanced Filters state
+  const [searchMode, setSearchMode] = useState<TableSearchMode>("partial");
+  const [advancedSearch, setAdvancedSearch] = useState<string>("");
+  const [showActiveOnly, setShowActiveOnly] = useState<boolean>(false);
+  const [recentlyCreated, setRecentlyCreated] = useState<boolean>(false);
+  const [neverLoggedIn, setNeverLoggedIn] = useState<boolean>(false);
+  const [lockedUsers, setLockedUsers] = useState<boolean>(false);
+
   // Inline editing state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<DynamicRecord>({
@@ -55,8 +106,17 @@ export default function DynamicTablesPage() {
     role: "",
     status: "Active",
     joinDate: "",
+    lastLogin: "Never",
+    locked: false,
   });
   const [editError, setEditError] = useState<string>("");
+
+  const recentDateLimit = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 7);
+    date.setHours(0, 0, 0, 0);
+    return date.getTime();
+  }, []);
 
   // Persist records so edits survive a reload (cleared via the Reset Data button)
   useEffect(() => {
@@ -76,21 +136,52 @@ export default function DynamicTablesPage() {
 
   // Filter and Sort Data
   const filteredRecords = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
+    const globalQuery = searchQuery.trim().toLowerCase();
+    const targetedQuery = advancedSearch.trim().toLowerCase();
+
     return records
       .filter((rec) => {
-        const matchesSearch =
-          rec.id.toLowerCase().includes(query) ||
-          rec.name.toLowerCase().includes(query) ||
-          rec.email.toLowerCase().includes(query) ||
-          rec.role.toLowerCase().includes(query);
-
+        const matchesGlobal = matchesBySearchMode(
+          [rec.id, rec.name, rec.email, rec.role],
+          globalQuery,
+          searchMode
+        );
+        const matchesTargeted = matchesBySearchMode(
+          [rec.name, rec.email],
+          targetedQuery,
+          searchMode
+        );
         const matchesStatus = statusFilter === "All" || rec.status === statusFilter;
+        const matchesActiveOnly = !showActiveOnly || rec.status === "Active";
+        const matchesRecent = !recentlyCreated || getJoinTime(rec) >= recentDateLimit;
+        const matchesNeverLogged = !neverLoggedIn || isNeverLoggedIn(rec);
+        const matchesLocked = !lockedUsers || Boolean(rec.locked);
 
-        return matchesSearch && matchesStatus;
+        return (
+          matchesGlobal &&
+          matchesTargeted &&
+          matchesStatus &&
+          matchesActiveOnly &&
+          matchesRecent &&
+          matchesNeverLogged &&
+          matchesLocked
+        );
       })
       .sort((a, b) => compareDynamicRecords(a, b, sortKey, sortDirection));
-  }, [records, searchQuery, statusFilter, sortKey, sortDirection]);
+  }, [
+    records,
+    searchQuery,
+    advancedSearch,
+    searchMode,
+    statusFilter,
+    showActiveOnly,
+    recentlyCreated,
+    neverLoggedIn,
+    lockedUsers,
+    recentDateLimit,
+    sortKey,
+    sortDirection,
+  ]);
 
   // Pagination (clamp so deleting/filtering can never leave us on a page that no longer exists)
   const totalPages = Math.max(1, Math.ceil(filteredRecords.length / pageSize));
@@ -143,7 +234,13 @@ export default function DynamicTablesPage() {
   function resetData() {
     setRecords(initialDynamicRecords);
     setSearchQuery("");
+    setAdvancedSearch("");
+    setSearchMode("partial");
     setStatusFilter("All");
+    setShowActiveOnly(false);
+    setRecentlyCreated(false);
+    setNeverLoggedIn(false);
+    setLockedUsers(false);
     setSortKey("id");
     setSortDirection("asc");
     setCurrentPage(1);
@@ -237,6 +334,168 @@ export default function DynamicTablesPage() {
           </button>
         </div>
       </div>
+
+      {/* Advanced Filters Panel */}
+      <section
+        className="card advanced-filters-card dynamic-advanced-filters-card"
+        data-testid="table-advanced-filters-card"
+      >
+        <div className="between" style={{ marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
+          <h2>Advanced Filters</h2>
+          {(advancedSearch.trim() !== "" ||
+            searchMode !== "partial" ||
+            showActiveOnly ||
+            recentlyCreated ||
+            neverLoggedIn ||
+            lockedUsers) && (
+            <button
+              type="button"
+              data-testid="table-clear-advanced-filters-btn"
+              onClick={() => {
+                setAdvancedSearch("");
+                setSearchMode("partial");
+                setShowActiveOnly(false);
+                setRecentlyCreated(false);
+                setNeverLoggedIn(false);
+                setLockedUsers(false);
+                setCurrentPage(1);
+              }}
+              style={{
+                background: "transparent",
+                color: "#6366f1",
+                border: darkMode ? "1px solid #334155" : "1px solid #cbd5e1",
+                padding: "6px 12px",
+                borderRadius: "8px",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Clear Advanced Filters
+            </button>
+          )}
+        </div>
+
+        <div className="advanced-filter-grid">
+          <div className="filter-panel" data-testid="table-search-mode-card">
+            <label className="filter-title">Search Mode</label>
+
+            <div className="vertical-options">
+              <label>
+                <input
+                  data-testid="table-search-mode-exact-radio"
+                  type="radio"
+                  name="tableSearchMode"
+                  checked={searchMode === "exact"}
+                  onChange={() => {
+                    setSearchMode("exact");
+                    setCurrentPage(1);
+                  }}
+                />
+                Exact Match
+              </label>
+
+              <label>
+                <input
+                  data-testid="table-search-mode-partial-radio"
+                  type="radio"
+                  name="tableSearchMode"
+                  checked={searchMode === "partial"}
+                  onChange={() => {
+                    setSearchMode("partial");
+                    setCurrentPage(1);
+                  }}
+                />
+                Partial Match
+              </label>
+
+              <label>
+                <input
+                  data-testid="table-search-mode-starts-radio"
+                  type="radio"
+                  name="tableSearchMode"
+                  checked={searchMode === "starts"}
+                  onChange={() => {
+                    setSearchMode("starts");
+                    setCurrentPage(1);
+                  }}
+                />
+                Starts With
+              </label>
+            </div>
+
+            <input
+              className="compact-search-input"
+              data-testid="table-advanced-search-input"
+              aria-label="Search by name or email"
+              placeholder="Search by name or email"
+              value={advancedSearch}
+              onChange={(event) => {
+                setAdvancedSearch(event.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+
+          <div className="filter-panel" data-testid="table-user-filters-card">
+            <label className="filter-title">User Filters</label>
+
+            <div className="vertical-options">
+              <label>
+                <input
+                  data-testid="table-active-only-filter-checkbox"
+                  type="checkbox"
+                  checked={showActiveOnly}
+                  onChange={(event) => {
+                    setShowActiveOnly(event.target.checked);
+                    setCurrentPage(1);
+                  }}
+                />
+                Show Active Only
+              </label>
+
+              <label>
+                <input
+                  data-testid="table-recently-created-filter-checkbox"
+                  type="checkbox"
+                  checked={recentlyCreated}
+                  onChange={(event) => {
+                    setRecentlyCreated(event.target.checked);
+                    setCurrentPage(1);
+                  }}
+                />
+                Recently Created
+              </label>
+
+              <label>
+                <input
+                  data-testid="table-never-logged-in-filter-checkbox"
+                  type="checkbox"
+                  checked={neverLoggedIn}
+                  onChange={(event) => {
+                    setNeverLoggedIn(event.target.checked);
+                    setCurrentPage(1);
+                  }}
+                />
+                Never Logged In
+              </label>
+
+              <label>
+                <input
+                  data-testid="table-locked-users-filter-checkbox"
+                  type="checkbox"
+                  checked={lockedUsers}
+                  onChange={(event) => {
+                    setLockedUsers(event.target.checked);
+                    setCurrentPage(1);
+                  }}
+                />
+                Locked Users
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Toolbar / Search & Filter Controls */}
       <div
@@ -446,35 +705,55 @@ export default function DynamicTablesPage() {
                           <option value="Inactive">Inactive</option>
                         </select>
                       ) : (
-                        <span
-                          className={`pill ${rec.status}`}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            padding: "4px 10px",
-                            borderRadius: "20px",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            background:
-                              rec.status === "Active"
-                                ? darkMode ? "rgba(16, 185, 129, 0.2)" : "#dcfce7"
-                                : rec.status === "Pending"
-                                ? darkMode ? "rgba(245, 158, 11, 0.2)" : "#fef3c7"
-                                : darkMode ? "rgba(239, 68, 68, 0.2)" : "#fee2e2",
-                            color:
-                              rec.status === "Active"
-                                ? darkMode ? "#34d399" : "#16703a"
-                                : rec.status === "Pending"
-                                ? darkMode ? "#fbbf24" : "#b45309"
-                                : darkMode ? "#f87171" : "#b91c1c",
-                          }}
-                        >
-                          {rec.status === "Active" && <CheckCircle size={12} />}
-                          {rec.status === "Pending" && <Clock size={12} />}
-                          {rec.status === "Inactive" && <AlertCircle size={12} />}
-                          {rec.status}
-                        </span>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                          <span
+                            className={`pill ${rec.status}`}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "4px 10px",
+                              borderRadius: "20px",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              background:
+                                rec.status === "Active"
+                                  ? darkMode ? "rgba(16, 185, 129, 0.2)" : "#dcfce7"
+                                  : rec.status === "Pending"
+                                  ? darkMode ? "rgba(245, 158, 11, 0.2)" : "#fef3c7"
+                                  : darkMode ? "rgba(239, 68, 68, 0.2)" : "#fee2e2",
+                              color:
+                                rec.status === "Active"
+                                  ? darkMode ? "#34d399" : "#16703a"
+                                  : rec.status === "Pending"
+                                  ? darkMode ? "#fbbf24" : "#b45309"
+                                  : darkMode ? "#f87171" : "#b91c1c",
+                            }}
+                          >
+                            {rec.status === "Active" && <CheckCircle size={12} />}
+                            {rec.status === "Pending" && <Clock size={12} />}
+                            {rec.status === "Inactive" && <AlertCircle size={12} />}
+                            {rec.status}
+                          </span>
+                          {rec.locked && (
+                            <span
+                              className="pill locked-pill"
+                              data-testid={`locked-badge-${rec.id}`}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                padding: "4px 8px",
+                                borderRadius: "20px",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                marginLeft: 0,
+                              }}
+                            >
+                              <Lock size={11} /> Locked
+                            </span>
+                          )}
+                        </div>
                       )}
                     </td>
 
@@ -488,7 +767,12 @@ export default function DynamicTablesPage() {
                           style={{ padding: "6px 10px", borderRadius: "8px", fontSize: "13px" }}
                         />
                       ) : (
-                        rec.joinDate
+                        <div>
+                          <div>{rec.joinDate}</div>
+                          <div style={{ fontSize: "11px", opacity: 0.8 }}>
+                            Last login: {rec.lastLogin || "Never"}
+                          </div>
+                        </div>
                       )}
                     </td>
 

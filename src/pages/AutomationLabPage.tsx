@@ -27,7 +27,7 @@ const initialTableData: TableRow[] = [
 export default function AutomationLabPage() {
   const { showToast } = useApp();
 
-  const [activeTab, setActiveTab] = useState<"forms" | "tables" | "async" | "frames" | "notifications" | "builder">("forms");
+  const [activeTab, setActiveTab] = useState<"forms" | "tables" | "async" | "frames" | "notifications">("forms");
   const [inspectorVisible, setInspectorVisible] = useState(true);
   const [activeAction, setActiveAction] = useState<string>("None");
   const [outputResult, setOutputResult] = useState<{
@@ -38,7 +38,7 @@ export default function AutomationLabPage() {
     meta?: Record<string, any>;
   } | null>({
     title: "Automation Studio Ready",
-    message: "Select a tab on the left to practice specific UI elements, tables, async waits, or build custom test automation scripts.",
+    message: "Select a tab on the left to practice specific UI elements, tables, async waits, or element interactions.",
     type: "info",
     timestamp: new Date().toLocaleTimeString(),
   });
@@ -89,11 +89,6 @@ export default function AutomationLabPage() {
   const [cookieResult, setCookieResult] = useState("No cookie set yet.");
   const [iframeClicked, setIframeClicked] = useState(false);
   const [shadowDomClicked, setShadowDomClicked] = useState(false);
-
-  // Test Case Builder State
-  const [builderFramework, setBuilderFramework] = useState<"playwright" | "selenium" | "cypress">("playwright");
-  const [builderModule, setBuilderModule] = useState<"forms" | "tables" | "async" | "frames">("forms");
-  const [testCaseName, setTestCaseName] = useState("Verify Form Controls and Input Submission");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -185,177 +180,6 @@ export default function AutomationLabPage() {
     return tableSortDirection === "asc" ? "▲" : "▼";
   }
 
-  // Generate Test Script Snippet
-  function generateTestCode(): string {
-    const className = testCaseName.replace(/[^a-zA-Z0-9]/g, "") || "AutomationPracticeTest";
-    if (builderFramework === "playwright") {
-      if (builderModule === "forms") {
-        return `import { test, expect } from '@playwright/test';
-
-test('${testCaseName}', async ({ page }) => {
-  await page.goto('/admin/lab');
-
-  // Select dropdown option
-  await page.locator('[data-testid="lab-dropdown-select"]').selectOption('Playwright');
-
-  // Select radio button
-  await page.locator('[data-testid="lab-radio-parallel"]').click();
-
-  // Check checkbox
-  await page.locator('[data-testid="lab-checkbox-screenshots"]').check();
-
-  // Type into input and send
-  await page.locator('[data-testid="lab-text-input"]').fill('Playwright Test Execution');
-  await page.locator('[data-testid="lab-text-send-btn"]').click();
-
-  // Assert confirmation modal is visible
-  await expect(page.locator('[data-testid="lab-sent-confirmation-modal"]')).toBeVisible();
-});`;
-      } else if (builderModule === "tables") {
-        return `import { test, expect } from '@playwright/test';
-
-test('${testCaseName}', async ({ page }) => {
-  await page.goto('/admin/lab');
-  await page.locator('[data-testid="lab-tab-tables"]').click();
-
-  // Search dynamic table
-  await page.locator('[data-testid="lab-table-search-input"]').fill('Engineering');
-
-  // Select employee row checkbox
-  await page.locator('[data-testid="lab-table-row-checkbox-emp-101"]').click();
-
-  // Assert selected count
-  const count = await page.locator('[data-testid="lab-table-selected-count"]').textContent();
-  expect(count).toContain('Selected: 1');
-});`;
-      } else {
-        return `import { test, expect } from '@playwright/test';
-
-test('${testCaseName}', async ({ page }) => {
-  await page.goto('/admin/lab');
-  await page.locator('[data-testid="lab-tab-async"]').click();
-
-  // Trigger async API delay
-  await page.locator('[data-testid="lab-api-delay-btn"]').click();
-
-  // Wait for loading indicator
-  await expect(page.locator('[data-testid="lab-loading-indicator"]')).toBeVisible();
-  await expect(page.locator('[data-testid="lab-loading-indicator"]')).toBeHidden({ timeout: 5000 });
-});`;
-      }
-    } else if (builderFramework === "selenium") {
-      if (builderModule === "forms") {
-        return `import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.support.ui.Select;
-import org.junit.Test;
-
-public class ${className} {
-    @Test
-    public void testFormControls(WebDriver driver) {
-        driver.get("http://localhost:5173/admin/lab");
-
-        Select dropdown = new Select(driver.findElement(By.cssSelector("[data-testid='lab-dropdown-select']")));
-        dropdown.selectByVisibleText("Selenium");
-
-        driver.findElement(By.cssSelector("[data-testid='lab-radio-standard']")).click();
-        driver.findElement(By.cssSelector("[data-testid='lab-checkbox-screenshots']")).click();
-
-        driver.findElement(By.cssSelector("[data-testid='lab-text-input']")).sendKeys("Selenium Automation Test");
-        driver.findElement(By.cssSelector("[data-testid='lab-text-send-btn']")).click();
-    }
-}`;
-      } else if (builderModule === "tables") {
-        return `import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
-import org.junit.Test;
-
-public class ${className} {
-    @Test
-    public void testDynamicTables(WebDriver driver) {
-        driver.get("http://localhost:5173/admin/lab");
-        driver.findElement(By.cssSelector("[data-testid='lab-tab-tables']")).click();
-
-        driver.findElement(By.cssSelector("[data-testid='lab-table-search-input']")).sendKeys("Engineering");
-        driver.findElement(By.cssSelector("[data-testid='lab-table-row-checkbox-emp-101']")).click();
-    }
-}`;
-      } else {
-        return `import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
-import org.junit.Test;
-
-public class ${className} {
-    @Test
-    public void testAsyncWaits(WebDriver driver) {
-        driver.get("http://localhost:5173/admin/lab");
-        driver.findElement(By.cssSelector("[data-testid='lab-tab-async']")).click();
-
-        driver.findElement(By.cssSelector("[data-testid='lab-api-delay-btn']")).click();
-    }
-}`;
-      }
-    } else {
-      // Cypress
-      if (builderModule === "forms") {
-        return `describe('${testCaseName}', () => {
-  it('should interact with form controls successfully', () => {
-    cy.visit('/admin/lab');
-    cy.get('[data-testid="lab-dropdown-select"]').select('Cypress');
-    cy.get('[data-testid="lab-radio-headless"]').click();
-    cy.get('[data-testid="lab-checkbox-screenshots"]').check();
-    cy.get('[data-testid="lab-text-input"]').type('Cypress Test Script');
-    cy.get('[data-testid="lab-text-send-btn"]').click();
-    cy.get('[data-testid="lab-sent-confirmation-modal"]').should('be.visible');
-  });
-});`;
-      } else if (builderModule === "tables") {
-        return `describe('${testCaseName}', () => {
-  it('should filter and select rows in dynamic tables', () => {
-    cy.visit('/admin/lab');
-    cy.get('[data-testid="lab-tab-tables"]').click();
-    cy.get('[data-testid="lab-table-search-input"]').type('Engineering');
-    cy.get('[data-testid="lab-table-row-checkbox-emp-101"]').click();
-    cy.get('[data-testid="lab-table-selected-count"]').should('contain', 'Selected: 1');
-  });
-});`;
-      } else {
-        return `describe('${testCaseName}', () => {
-  it('should handle async API calls and loading spinners', () => {
-    cy.visit('/admin/lab');
-    cy.get('[data-testid="lab-tab-async"]').click();
-    cy.get('[data-testid="lab-api-delay-btn"]').click();
-    cy.get('[data-testid="lab-loading-indicator"]').should('be.visible');
-  });
-});`;
-      }
-    }
-  }
-
-  function handleDownloadCode() {
-    const code = generateTestCode();
-    let filename = "TestCase.spec.ts";
-    if (builderFramework === "playwright") {
-      filename = `${testCaseName.replace(/[^a-zA-Z0-9]/g, "_") || "TestCase"}.spec.ts`;
-    } else if (builderFramework === "selenium") {
-      const className = testCaseName.replace(/[^a-zA-Z0-9]/g, "") || "TestCase";
-      filename = `${className}Test.java`;
-    } else {
-      filename = `${testCaseName.replace(/[^a-zA-Z0-9]/g, "_") || "TestCase"}.cy.js`;
-    }
-
-    const blob = new Blob([code], { type: "text/plain;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
-    showToast(`Test script downloaded as ${filename}!`, "success");
-    logAction("Download Test Code", `Downloaded ${builderFramework} test script (${filename}).`, "success");
-  }
-
   return (
     <div className="lab-page" data-testid="automation-lab-page">
       <div className="lab-header" data-testid="automation-lab-header">
@@ -404,13 +228,6 @@ public class ${className} {
             onClick={() => setActiveTab("notifications")}
           >
             🔔 Toasts & Modals
-          </button>
-          <button
-            className={activeTab === "builder" ? "lab-tab-btn active" : "lab-tab-btn"}
-            data-testid="lab-tab-builder"
-            onClick={() => setActiveTab("builder")}
-          >
-            🧪 Test Case Builder
           </button>
         </div>
 
@@ -970,142 +787,6 @@ public class ${className} {
                 <button data-testid="lab-open-modal-btn" onClick={() => { setModalOpen(true); logAction("Open Modal", "Practice modal opened.", "info"); }}>Open Modal</button>
                 <button data-testid="lab-random-popup-btn" onClick={() => logAction("Trigger Random Popup", "Random practice popup event triggered.", "success", { popupId: "POPUP-" + Math.floor(Math.random() * 1000) })}>Random Popup</button>
               </div>
-            </section>
-          )}
-
-          {activeTab === "builder" && (
-            <section className="card lab-section animate-fade" data-testid="lab-section-builder">
-              <h3>🧪 Test Case Builder & Code Generator</h3>
-              <p className="muted">Build test cases, select your framework, and generate robust `data-testid` automation scripts instantly.</p>
-
-              <div className="lab-form-group">
-                <label>Test Case Name</label>
-                <input
-                  data-testid="builder-test-name"
-                  value={testCaseName}
-                  onChange={(e) => setTestCaseName(e.target.value)}
-                  placeholder="Enter test case description..."
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "10px" }}>
-                <div className="lab-form-group">
-                  <label>Select Framework</label>
-                  <select
-                    data-testid="builder-framework-select"
-                    value={builderFramework}
-                    onChange={(e) => setBuilderFramework(e.target.value as any)}
-                  >
-                    <option value="playwright">Playwright (TypeScript)</option>
-                    <option value="selenium">Selenium WebDriver (Java)</option>
-                    <option value="cypress">Cypress (JavaScript)</option>
-                  </select>
-                </div>
-                <div className="lab-form-group">
-                  <label>Select Target Module</label>
-                  <select
-                    data-testid="builder-module-select"
-                    value={builderModule}
-                    onChange={(e) => setBuilderModule(e.target.value as any)}
-                  >
-                    <option value="forms">Form Controls & Inputs</option>
-                    <option value="tables">Dynamic Data Tables</option>
-                    <option value="async">Async Waits & Loaders</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="lab-form-group" style={{ marginTop: "14px" }}>
-                <div className="between">
-                  <label>Generated Test Script</label>
-                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                    <button
-                      style={{ padding: "6px 14px", fontSize: "12px" }}
-                      data-testid="builder-copy-code-btn"
-                      onClick={() => {
-                        navigator.clipboard.writeText(generateTestCode());
-                        showToast("Test code copied to clipboard!", "success");
-                        logAction("Copy Test Code", `Copied ${builderFramework} test script for "${testCaseName}".`, "success");
-                      }}
-                    >
-                      📋 Copy Code
-                    </button>
-                    <button
-                      style={{ padding: "6px 14px", fontSize: "12px", background: "#4f46e5", color: "#ffffff" }}
-                      data-testid="builder-download-code-btn"
-                      onClick={handleDownloadCode}
-                    >
-                      📥 Download Code
-                    </button>
-                  </div>
-                </div>
-                <div
-                  style={{
-                    background: "#09090b",
-                    borderRadius: "10px",
-                    border: "1px solid #27272a",
-                    overflow: "hidden",
-                    marginTop: "8px",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "8px 16px",
-                      background: "#121212",
-                      borderBottom: "1px solid #27272a",
-                      fontSize: "12px",
-                    }}
-                  >
-                    <span style={{ color: "#a1a1aa", fontFamily: "monospace" }}>
-                      {builderModule === "forms" ? "FormControls.test" : builderModule === "tables" ? "DataTables.test" : "AsyncWaits.test"}
-                    </span>
-                    <span
-                      data-testid="builder-framework-badge"
-                      style={{
-                        padding: "2px 8px",
-                        borderRadius: "4px",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        background: builderFramework === "playwright" ? "#3178c622" : builderFramework === "selenium" ? "#f8982022" : "#f7df1e22",
-                        color: builderFramework === "playwright" ? "#60a5fa" : builderFramework === "selenium" ? "#fb923c" : "#facc15",
-                        border: `1px solid ${builderFramework === "playwright" ? "#3178c655" : builderFramework === "selenium" ? "#f8982055" : "#f7df1e55"}`,
-                      }}
-                    >
-                      {builderFramework === "playwright" ? "Playwright (TypeScript)" : builderFramework === "selenium" ? "Selenium (Java)" : "Cypress (JavaScript)"}
-                    </span>
-                  </div>
-                  <pre
-                    data-testid="builder-code-output"
-                    style={{
-                      background: "#09090b",
-                      color: "#34d399",
-                      padding: "16px",
-                      fontFamily: "monospace",
-                      fontSize: "13px",
-                      overflowX: "auto",
-                      lineHeight: "1.6",
-                      margin: 0,
-                    }}
-                  >
-                    {generateTestCode()}
-                  </pre>
-                </div>
-              </div>
-
-              <button
-                className="full"
-                style={{ marginTop: "14px", background: "#4f46e5", color: "#ffffff" }}
-                data-testid="builder-run-test-btn"
-                onClick={() => {
-                  logAction("Run Mock Test Case", `Executed test case "${testCaseName}" using ${builderFramework.toUpperCase()} assertions. Status: PASSED (100% assertions met).`, "success");
-                  showToast(`Test "${testCaseName}" passed successfully!`, "success");
-                }}
-              >
-                ▶️ Execute Mock Test Case
-              </button>
             </section>
           )}
 

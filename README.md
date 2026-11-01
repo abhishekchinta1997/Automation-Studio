@@ -1,4 +1,4 @@
-# 🚀 Automation Studio
+﻿# 🚀 Automation Studio
 
 **Automation Studio** is a professional, enterprise-grade Practice Web Application and QA Sandbox engineered specifically for practicing and mastering web test automation using industry-leading frameworks like **Playwright**, **Selenium**, and **Cypress**.
 
@@ -24,12 +24,7 @@
 * **Frames & Storage:** Shadow DOM elements, nested iframes, LocalStorage token managers, and cookie inspection utilities.
 * **Live Inspector Console:** Real-time telemetry feed logging user interactions, triggered event payloads, and execution timestamps side-by-side with test workspaces.
 
-### 🛠️ 4. Test Case Builder & Code Generator
-* **Multi-Framework Support:** Instant generation of production-ready test scripts for **Playwright (TypeScript)**, **Selenium WebDriver (Java)**, and **Cypress (JavaScript)**.
-* **Resilient Selectors:** Promotes best practices by generating scripts using robust `data-testid` locators.
-* **Copy & Export:** One-click code copying and file downloading (`.spec.ts`, `.java`, `.cy.js`).
-
-### 🎨 5. UI & Ergonomics
+### 🎨 4. UI & Ergonomics
 * **Dynamic Theme Engine:** True Black Dark Mode (`#000000`) with neutral dark cards (`#121212`) and high-contrast white text (`#F9FAFB`), alongside a clean Light Mode.
 * **Collapsible Sidebar:** Responsive sidebar toggle with collapsed icon-only view and hover tooltips.
 

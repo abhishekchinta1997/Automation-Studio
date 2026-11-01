@@ -2367,3 +2367,18 @@ select[multiple]{
   border-color: #334155;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
+
+/* Theme: keep the canvas, body and wrapper in sync with the active theme (no flash on load/navigation) */
+html {
+  background: #f4f7fb;
+}
+html.dark {
+  background: #0F172A;
+}
+html.dark body {
+  background: #0F172A;
+  color: #F8FAFC;
+}
+.theme-system-button:disabled {
+  cursor: default;
+}

@@ -1,9 +1,30 @@
-import React, { createContext, useContext, useMemo, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AppUser, ActivityItem, UserStatus, LoginAttempt, SystemLog } from "../types/user";
 import { initialUsers, initialActivity } from "../data/mockUsers";
 import { createRandomUser } from "../utils/randomUser";
 
 type Toast = { message: string; type: "success" | "error" | "info" | "warning" } | null;
+export type ThemePreference = "light" | "dark" | "system";
+
+// "true" / "false" = manual override, key absent = follow the OS setting.
+const THEME_STORAGE_KEY = "automation-dark-mode";
+const DARK_QUERY = "(prefers-color-scheme: dark)";
+
+function readThemePreference(): ThemePreference {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    if (saved === "true") return "dark";
+    if (saved === "false") return "light";
+  } catch (e) {
+    // storage unavailable: follow system
+  }
+  return "system";
+}
+
+function systemPrefersDark(): boolean {
+  return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(DARK_QUERY).matches;
+}
+
 interface AppContextType {
   currentUser: AppUser | null;
   users: AppUser[];
@@ -11,10 +32,12 @@ interface AppContextType {
   loginAttempts: LoginAttempt[];
   systemLogs: SystemLog[];
   darkMode: boolean;
+  themePreference: ThemePreference;
   toast: Toast;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   toggleDarkMode: () => void;
+  resetThemeToSystem: () => void;
   showToast: (message: string, type?: "success" | "error" | "info" | "warning") => void;
   createUser: (user: Omit<AppUser, "id" | "createdDate" | "lastLogin">) => string | null;
   updateUser: (id: string, changes: Partial<AppUser>) => void;
@@ -75,9 +98,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("automation-current-user");
     return null;
   });
-  const [darkMode, setDarkMode] = useState(() => {
-    return localStorage.getItem("automation-dark-mode") === "true";
-  });
+  const [themePreference, setThemePreference] = useState<ThemePreference>(readThemePreference);
+  const [systemDark, setSystemDark] = useState<boolean>(systemPrefersDark);
+  const darkMode = themePreference === "system" ? systemDark : themePreference === "dark";
+
+  // Live-follow OS theme changes (only affects the UI while no manual override is saved)
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia(DARK_QUERY);
+    const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    setSystemDark(media.matches);
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", onChange);
+      return () => media.removeEventListener("change", onChange);
+    }
+    media.addListener(onChange);
+    return () => media.removeListener(onChange);
+  }, []);
+
+  // Mirror the theme on <html> so the page background, scrollbars and form controls follow it
+  // before/without any component rendering (prevents white/dark flashes).
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("dark", darkMode);
+    root.style.colorScheme = darkMode ? "dark" : "light";
+    root.setAttribute("data-theme", darkMode ? "dark" : "light");
+    root.setAttribute("data-theme-source", themePreference === "system" ? "system" : "manual");
+  }, [darkMode, themePreference]);
   const [toast, setToast] = useState<Toast>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
@@ -159,12 +206,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("automation-current-user");
   }
 
+  // Manual toggle: flips the *effective* theme and saves it as an explicit override.
   function toggleDarkMode() {
-    setDarkMode((v) => {
-      const next = !v;
-      localStorage.setItem("automation-dark-mode", String(next));
-      return next;
-    });
+    const next: ThemePreference = darkMode ? "light" : "dark";
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, String(next === "dark"));
+    } catch (e) {
+      // storage unavailable: still apply for this session
+    }
+    setThemePreference(next);
+  }
+
+  // Remove the manual override and go back to following the OS setting.
+  function resetThemeToSystem() {
+    try {
+      localStorage.removeItem(THEME_STORAGE_KEY);
+    } catch (e) {
+      // ignore
+    }
+    setThemePreference("system");
+    setSystemDark(systemPrefersDark());
   }
 
   function createUser(user: Omit<AppUser, "id" | "createdDate" | "lastLogin">) {
@@ -234,10 +295,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     loginAttempts,
     systemLogs,
     darkMode,
+    themePreference,
     toast,
     login,
     logout,
     toggleDarkMode,
+    resetThemeToSystem,
     showToast,
     createUser,
     updateUser,
@@ -246,7 +309,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     createRandomUsers,
     updateOwnProfile,
-  }), [currentUser, users, activity, loginAttempts, systemLogs, darkMode, toast]);
+  }), [currentUser, users, activity, loginAttempts, systemLogs, darkMode, themePreference, toast]);
 
   return <AppContext.Provider value={value}><div className={darkMode ? "dark" : ""}>{children}</div></AppContext.Provider>;
 }

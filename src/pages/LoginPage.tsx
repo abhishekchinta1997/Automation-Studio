@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
+import SystemThemeButton from "../components/SystemThemeButton";
 import { Sun, Moon, Bot, Shield, Database, CheckSquare, Table as TableIcon, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
@@ -72,6 +73,8 @@ export default function LoginPage() {
           zIndex: 0,
         }}
       />
+
+      <SystemThemeButton style={{ position: "absolute", top: "20px", right: "170px", padding: "6px 12px", borderRadius: "12px", fontSize: "13px", zIndex: 50 }} />
 
       <button
         className="theme-toggle-button login-theme-toggle"

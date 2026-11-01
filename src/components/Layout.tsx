@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
+import SystemThemeButton from "./SystemThemeButton";
 import { Home, Users, FlaskConical, Table, Sun, Moon, LogOut } from "lucide-react";
 
 export default function Layout() {
@@ -130,6 +131,7 @@ export default function Layout() {
           </div>
 
           <div className="topbar-actions" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <SystemThemeButton />
             <button
               className="theme-toggle-button"
               data-testid="dark-mode-toggle"

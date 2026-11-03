@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [forgotPasswordModal, setForgotPasswordModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
+  const [forgotError, setForgotError] = useState("");
 
   useEffect(() => {
     if (!forgotPasswordModal) return;
@@ -25,18 +26,50 @@ export default function LoginPage() {
         setForgotPasswordModal(false);
         setForgotSent(false);
         setForgotEmail("");
+        setForgotError("");
       }
     }
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [forgotPasswordModal]);
 
+  function handleForgotPasswordSubmit() {
+    const trimmed = forgotEmail.trim();
+    if (!trimmed) {
+      setForgotSent(false);
+      setForgotError("Email address is required");
+      showToast("Please enter an email", "error");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setForgotSent(false);
+      setForgotError("Please enter a valid email address");
+      showToast("Please enter a valid email address", "error");
+      return;
+    }
+    setForgotError("");
+    setForgotSent(true);
+    showToast("Password reset link sent", "success");
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError("");
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
+      setError("Email and password are required");
+      showToast("Email and password are required", "error");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError("Please enter a valid email address");
+      showToast("Please enter a valid email address", "error");
+      return;
+    }
+
     setLoading(true);
 
-    const ok = await login(email, password);
+    const ok = await login(trimmedEmail, password);
     setLoading(false);
 
     if (!ok) {
@@ -45,7 +78,7 @@ export default function LoginPage() {
     }
 
     showToast("Login successful", "success");
-    const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    const user = users.find((u) => u.email.toLowerCase() === trimmedEmail.toLowerCase());
     const isAdmin = user?.role === "Admin User" || user?.role === "Super User";
     navigate(isAdmin ? "/admin" : "/test-user");
   }
@@ -508,16 +541,14 @@ export default function LoginPage() {
                 <input
                   data-testid="forgot-password-email-input"
                   value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
+                  onChange={(e) => {
+                    setForgotEmail(e.target.value);
+                    if (forgotError) setForgotError("");
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
-                      if (!forgotEmail) {
-                        showToast("Please enter an email", "error");
-                        return;
-                      }
-                      setForgotSent(true);
-                      showToast("Password reset link sent", "success");
+                      handleForgotPasswordSubmit();
                     }
                   }}
                   placeholder="Enter your email"
@@ -530,6 +561,12 @@ export default function LoginPage() {
                     outline: "none",
                   }}
                 />
+
+                {forgotError && (
+                  <div className="error" data-testid="forgot-password-error-message" role="alert" style={{ marginTop: "10px", padding: "8px 10px", fontSize: "12px" }}>
+                    {forgotError}
+                  </div>
+                )}
 
                 {forgotSent && (
                   <div className="practice-message" style={{ color: "#16703a", background: "#dcfce7", padding: "10px", borderRadius: "8px", marginTop: "10px" }} data-testid="forgot-password-success-message">
@@ -545,6 +582,7 @@ export default function LoginPage() {
                       setForgotPasswordModal(false);
                       setForgotSent(false);
                       setForgotEmail("");
+                      setForgotError("");
                     }}
                     style={{ background: darkMode ? "#334155" : "#e2e8f0", color: darkMode ? "#f8fafc" : "#1e293b", borderRadius: "10px" }}
                   >
@@ -553,14 +591,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     data-testid="forgot-password-submit-button"
-                    onClick={() => {
-                      if (!forgotEmail) {
-                        showToast("Please enter an email", "error");
-                        return;
-                      }
-                      setForgotSent(true);
-                      showToast("Password reset link sent", "success");
-                    }}
+                    onClick={handleForgotPasswordSubmit}
                     style={{ background: "#6366f1", color: "#ffffff", borderRadius: "10px" }}
                   >
                     Send Reset Link

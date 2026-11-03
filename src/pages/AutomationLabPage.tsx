@@ -58,9 +58,24 @@ export default function AutomationLabPage() {
   });
   const [sliderValue, setSliderValue] = useState(75);
   const [textInput, setTextInput] = useState("");
+  const [textInputError, setTextInputError] = useState("");
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [sentMessageModal, setSentMessageModal] = useState<string | null>(null);
+  const [randomPopup, setRandomPopup] = useState<{
+    popupId: string;
+    title: string;
+    message: string;
+    severity: "info" | "warning" | "success" | "error";
+    timestamp: string;
+  } | null>(null);
+
+  // Custom Countdown Timer & Validation State
+  const [countdownInput, setCountdownInput] = useState("5");
+  const [countdownError, setCountdownError] = useState("");
+  const [countdownRemaining, setCountdownRemaining] = useState<number | null>(null);
+  const [countdownCompletedMsg, setCountdownCompletedMsg] = useState("");
+  const countdownIntervalRef = useRef<number | null>(null);
 
   // Searchable Country Dropdown State
   const countriesList = [
@@ -88,6 +103,7 @@ export default function AutomationLabPage() {
   const [ajaxResultText, setAjaxResultText] = useState("Click button to load delayed AJAX content.");
   const [storageKey, setStorageKey] = useState("automation_token");
   const [storageVal, setStorageVal] = useState("bearer_xyz_998877");
+  const [storageError, setStorageError] = useState("");
   const [cookieResult, setCookieResult] = useState("No cookie set yet.");
   const [iframeClicked, setIframeClicked] = useState(false);
   const [shadowDomClicked, setShadowDomClicked] = useState(false);
@@ -95,9 +111,21 @@ export default function AutomationLabPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!modalOpen && !sentMessageModal && !countryOpen) return;
+    return () => {
+      if (countdownIntervalRef.current !== null) {
+        window.clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!modalOpen && !sentMessageModal && !countryOpen && !randomPopup) return;
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        if (randomPopup) {
+          setRandomPopup(null);
+          logAction("Close Random Popup", "Random popup dismissed via Escape key.", "info");
+        }
         if (modalOpen) {
           setModalOpen(false);
           logAction("Close Modal", "Practice modal closed via Escape key.", "info");
@@ -112,7 +140,7 @@ export default function AutomationLabPage() {
     }
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
-  }, [modalOpen, sentMessageModal, countryOpen]);
+  }, [modalOpen, sentMessageModal, countryOpen, randomPopup]);
 
   function logAction(title: string, message: string, type: "success" | "error" | "info" | "warning", meta?: Record<string, any>) {
     const time = new Date().toLocaleTimeString();
@@ -127,6 +155,259 @@ export default function AutomationLabPage() {
   function handleTriggerToast(type: "success" | "error" | "info" | "warning") {
     showToast(`Practice ${type} toast triggered!`, type);
     logAction(`Trigger ${type.toUpperCase()} Toast`, `Successfully displayed ${type} toast notification banner.`, type);
+  }
+
+  function handleTriggerRandomPopup() {
+    const scenarios: Array<{
+      title: string;
+      message: string;
+      severity: "info" | "warning" | "success" | "error";
+    }> = [
+      {
+        title: "Security Session Check",
+        message: "Random security verification popup triggered. Session token is valid and active for automation testing.",
+        severity: "info",
+      },
+      {
+        title: "API Rate Limit Warning",
+        message: "Simulated burst threshold reached (85% of quota). Verify that your test script handles unexpected alert popups.",
+        severity: "warning",
+      },
+      {
+        title: "Deployment Gate Passed",
+        message: "All 42 smoke suite assertions passed in staging. Build artifact promoted to QA verification.",
+        severity: "success",
+      },
+      {
+        title: "Transient Worker Alert",
+        message: "Background queue worker reported a simulated retryable timeout on shard #2. Auto-recovery succeeded.",
+        severity: "error",
+      },
+    ];
+    const picked = scenarios[Math.floor(Math.random() * scenarios.length)];
+    const popupId = "POPUP-" + Math.floor(100 + Math.random() * 900);
+    const timestamp = new Date().toLocaleTimeString();
+
+    setRandomPopup({
+      popupId,
+      title: picked.title,
+      message: picked.message,
+      severity: picked.severity,
+      timestamp,
+    });
+    showToast(`Random Popup (${popupId}): ${picked.title}`, picked.severity);
+    logAction("Trigger Random Popup", `${picked.title} (${popupId}): ${picked.message}`, picked.severity, {
+      popupId,
+      title: picked.title,
+      severity: picked.severity,
+    });
+  }
+
+  function validateCountdownValue(rawInput: string): { valid: boolean; seconds: number; error: string } {
+    const trimmed = rawInput.trim();
+    if (!trimmed) {
+      return {
+        valid: false,
+        seconds: 0,
+        error: "Please enter a countdown time in seconds (1–30). Maximum allowed wait time is 30 seconds",
+      };
+    }
+    if (!/^\d+$/.test(trimmed)) {
+      return {
+        valid: false,
+        seconds: 0,
+        error: "Only numbers are allowed. Maximum allowed wait time is 30 seconds",
+      };
+    }
+    const seconds = Number(trimmed);
+    if (seconds < 1) {
+      return {
+        valid: false,
+        seconds: 0,
+        error: "Countdown must be at least 1 second. Maximum allowed wait time is 30 seconds",
+      };
+    }
+    if (seconds > 30) {
+      return {
+        valid: false,
+        seconds: 0,
+        error: "Maximum allowed wait time is 30 seconds",
+      };
+    }
+    return { valid: true, seconds, error: "" };
+  }
+
+  function handleCountdownInputChange(value: string) {
+    setCountdownInput(value);
+    setCountdownCompletedMsg("");
+    if (!value.trim()) {
+      setCountdownError("");
+      return;
+    }
+    const check = validateCountdownValue(value);
+    setCountdownError(check.valid ? "" : check.error);
+  }
+
+  function handleStartCountdown() {
+    const check = validateCountdownValue(countdownInput);
+    if (!check.valid) {
+      setCountdownError(check.error);
+      showToast(check.error, "error");
+      logAction("Countdown Validation Error", check.error, "error", { input: countdownInput });
+      return;
+    }
+
+    if (countdownIntervalRef.current !== null) {
+      window.clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+
+    const totalSeconds = check.seconds;
+    setCountdownError("");
+    setCountdownCompletedMsg("");
+    setCountdownRemaining(totalSeconds);
+    logAction("Start Custom Countdown", `Started ${totalSeconds}s live countdown timer.`, "info", { seconds: totalSeconds });
+
+    let current = totalSeconds;
+    countdownIntervalRef.current = window.setInterval(() => {
+      current -= 1;
+      if (current > 0) {
+        setCountdownRemaining(current);
+      } else {
+        if (countdownIntervalRef.current !== null) {
+          window.clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+        }
+        setCountdownRemaining(null);
+        const doneText = `Countdown complete! Custom wait of ${totalSeconds}s finished.`;
+        setCountdownCompletedMsg(doneText);
+        showToast(doneText, "success");
+        logAction("Custom Countdown Complete", doneText, "success", { seconds: totalSeconds });
+      }
+    }, 1000);
+  }
+
+  function handleCancelCountdown() {
+    if (countdownIntervalRef.current !== null) {
+      window.clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    setCountdownRemaining(null);
+    setCountdownCompletedMsg("");
+    showToast("Countdown cancelled", "info");
+    logAction("Cancel Custom Countdown", "Cancelled active countdown timer.", "warning");
+  }
+
+  function renderCustomCountdownSection() {
+    return (
+      <div
+        className="lab-form-group"
+        data-testid="lab-custom-countdown-section"
+        style={{
+          marginTop: "20px",
+          paddingTop: "16px",
+          borderTop: darkMode ? "1px solid #334155" : "1px solid #e2e8f0",
+        }}
+      >
+        <div className="lab-element-header">
+          <h4>Custom Countdown Timer (Max 30s)</h4>
+          <small className="muted">Enter a custom wait time in seconds (numbers only, 1–30s limit)</small>
+        </div>
+
+        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", marginTop: "6px" }}>
+          <input
+            type="text"
+            inputMode="numeric"
+            data-testid="lab-custom-countdown-input"
+            aria-label="Custom countdown time in seconds"
+            placeholder="Enter seconds (1 - 30)"
+            value={countdownInput}
+            onChange={(e) => handleCountdownInputChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleStartCountdown();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                setCountdownError("");
+              }
+            }}
+            style={{ maxWidth: "220px" }}
+          />
+          <button
+            type="button"
+            data-testid="lab-custom-countdown-btn"
+            disabled={countdownRemaining !== null}
+            onClick={handleStartCountdown}
+            style={{ whiteSpace: "nowrap", padding: "10px 18px" }}
+          >
+            {countdownRemaining !== null ? `Running (${countdownRemaining}s)...` : "Start Countdown"}
+          </button>
+          {countdownRemaining !== null && (
+            <button
+              type="button"
+              data-testid="lab-custom-countdown-cancel-btn"
+              onClick={handleCancelCountdown}
+              style={{
+                whiteSpace: "nowrap",
+                padding: "10px 14px",
+                background: darkMode ? "#334155" : "#e2e8f0",
+                color: darkMode ? "#f8fafc" : "#1e293b",
+              }}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+
+        {countdownError && (
+          <div
+            className="error"
+            data-testid="lab-custom-countdown-error"
+            role="alert"
+            aria-live="assertive"
+            style={{ marginTop: "10px", padding: "10px 14px", borderRadius: "10px", fontSize: "13px", fontWeight: 600 }}
+          >
+            {countdownError}
+          </div>
+        )}
+
+        {countdownRemaining !== null && (
+          <div
+            className="practice-message"
+            data-testid="lab-custom-countdown-timer"
+            role="status"
+            aria-live="polite"
+            style={{
+              marginTop: "12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              fontWeight: 700,
+              color: darkMode ? "#a5b4fc" : "#4f46e5",
+            }}
+          >
+            <span>⏱️</span>
+            <span>Waiting... {countdownRemaining}s remaining</span>
+          </div>
+        )}
+
+        {countdownRemaining === null && countdownCompletedMsg && (
+          <div
+            className="practice-message"
+            data-testid="lab-custom-countdown-complete"
+            role="status"
+            style={{
+              marginTop: "12px",
+              fontWeight: 700,
+              color: darkMode ? "#34d399" : "#15803d",
+            }}
+          >
+            ✅ {countdownCompletedMsg}
+          </div>
+        )}
+      </div>
+    );
   }
 
   const [loadingState, setLoadingState] = useState(false);
@@ -529,20 +810,28 @@ export default function AutomationLabPage() {
                     id="lab-text-input"
                     data-testid="lab-text-input"
                     placeholder="Type message to send..."
+                    maxLength={200}
                     value={textInput}
-                    onChange={(e) => setTextInput(e.target.value)}
+                    onChange={(e) => {
+                      setTextInput(e.target.value);
+                      if (textInputError) setTextInputError("");
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        if (!textInput.trim()) {
+                        const trimmed = textInput.trim();
+                        if (!trimmed) {
+                          setTextInputError("Message text is required before sending");
                           showToast("Please enter some text first", "warning");
                           return;
                         }
-                        setSentMessageModal(textInput);
-                        logAction("Send Message", `Successfully sent message: "${textInput}"`, "success", { text: textInput });
-                      } else if (e.key === "Escape" && textInput) {
+                        setTextInputError("");
+                        setSentMessageModal(trimmed);
+                        logAction("Send Message", `Successfully sent message: "${trimmed}"`, "success", { text: trimmed });
+                      } else if (e.key === "Escape") {
                         e.preventDefault();
                         setTextInput("");
+                        setTextInputError("");
                       }
                     }}
                   />
@@ -551,17 +840,25 @@ export default function AutomationLabPage() {
                     data-testid="lab-text-send-btn"
                     style={{ whiteSpace: "nowrap", padding: "10px 20px" }}
                     onClick={() => {
-                      if (!textInput.trim()) {
+                      const trimmed = textInput.trim();
+                      if (!trimmed) {
+                        setTextInputError("Message text is required before sending");
                         showToast("Please enter some text first", "warning");
                         return;
                       }
-                      setSentMessageModal(textInput);
-                      logAction("Send Message", `Successfully sent message: "${textInput}"`, "success", { text: textInput });
+                      setTextInputError("");
+                      setSentMessageModal(trimmed);
+                      logAction("Send Message", `Successfully sent message: "${trimmed}"`, "success", { text: trimmed });
                     }}
                   >
                     Send
                   </button>
                 </div>
+                {textInputError && (
+                  <div className="error" data-testid="lab-text-input-error" role="alert" style={{ marginTop: "8px", padding: "8px 12px", fontSize: "12px" }}>
+                    {textInputError}
+                  </div>
+                )}
               </div>
 
               <div className="lab-form-group">
@@ -771,6 +1068,8 @@ export default function AutomationLabPage() {
               <div className="practice-message" data-testid="lab-ajax-result-box" style={{ marginTop: "16px" }}>
                 {ajaxLoading ? <span className="export-progress"><span /> Loading async data...</span> : <strong data-testid="lab-ajax-result-text">{ajaxResultText}</strong>}
               </div>
+
+              {renderCustomCountdownSection()}
             </section>
           )}
 
@@ -814,15 +1113,50 @@ export default function AutomationLabPage() {
               <div className="lab-form-group" style={{ marginTop: "20px" }}>
                 <label>Web Storage & Cookies</label>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "6px" }}>
-                  <input data-testid="lab-storage-key-input" value={storageKey} onChange={(e) => setStorageKey(e.target.value)} placeholder="Key" />
-                  <input data-testid="lab-storage-val-input" value={storageVal} onChange={(e) => setStorageVal(e.target.value)} placeholder="Value" />
+                  <input
+                    data-testid="lab-storage-key-input"
+                    value={storageKey}
+                    onChange={(e) => {
+                      setStorageKey(e.target.value);
+                      if (storageError) setStorageError("");
+                    }}
+                    placeholder="Key"
+                  />
+                  <input
+                    data-testid="lab-storage-val-input"
+                    value={storageVal}
+                    onChange={(e) => {
+                      setStorageVal(e.target.value);
+                      if (storageError) setStorageError("");
+                    }}
+                    placeholder="Value"
+                  />
                 </div>
+                {storageError && (
+                  <div className="error" data-testid="lab-storage-error" role="alert" style={{ marginTop: "8px", padding: "8px 12px", fontSize: "12px" }}>
+                    {storageError}
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
                   <button
                     data-testid="lab-set-storage-btn"
                     onClick={() => {
-                      localStorage.setItem(storageKey, storageVal);
-                      logAction("Set LocalStorage", `Set ${storageKey} = ${storageVal}`, "success", { key: storageKey, value: storageVal });
+                      const k = storageKey.trim();
+                      const v = storageVal.trim();
+                      if (!k) {
+                        setStorageError("Storage key is required");
+                        showToast("Storage key is required", "error");
+                        return;
+                      }
+                      if (!v) {
+                        setStorageError("Storage value is required");
+                        showToast("Storage value is required", "error");
+                        return;
+                      }
+                      setStorageError("");
+                      localStorage.setItem(k, v);
+                      showToast(`Saved "${k}" to localStorage`, "success");
+                      logAction("Set LocalStorage", `Set ${k} = ${v}`, "success", { key: k, value: v });
                     }}
                   >
                     Set LocalStorage
@@ -830,8 +1164,15 @@ export default function AutomationLabPage() {
                   <button
                     data-testid="lab-get-storage-btn"
                     onClick={() => {
-                      const val = localStorage.getItem(storageKey);
-                      logAction("Get LocalStorage", `Retrieved ${storageKey}: "${val || "null"}"`, "info", { key: storageKey, value: val });
+                      const k = storageKey.trim();
+                      if (!k) {
+                        setStorageError("Storage key is required to read localStorage");
+                        showToast("Storage key is required", "error");
+                        return;
+                      }
+                      setStorageError("");
+                      const val = localStorage.getItem(k);
+                      logAction("Get LocalStorage", `Retrieved ${k}: "${val || "null"}"`, "info", { key: k, value: val });
                     }}
                   >
                     Get LocalStorage
@@ -870,15 +1211,17 @@ export default function AutomationLabPage() {
           {activeTab === "notifications" && (
             <section className="card lab-section animate-fade" data-testid="lab-section-notifications">
               <h3>Toasts, Alerts & Modals</h3>
-              <p className="muted">Test notification banners and modal assertions.</p>
+              <p className="muted">Test notification banners, random alert popups, custom countdown timers, and modal assertions.</p>
               <div className="lab-button-grid">
                 <button data-testid="lab-toast-success-btn" onClick={() => handleTriggerToast("success")}>Success Toast</button>
                 <button data-testid="lab-toast-error-btn" onClick={() => handleTriggerToast("error")}>Error Toast</button>
                 <button data-testid="lab-toast-warning-btn" onClick={() => handleTriggerToast("warning")}>Warning Toast</button>
                 <button data-testid="lab-toast-info-btn" onClick={() => handleTriggerToast("info")}>Info Toast</button>
                 <button data-testid="lab-open-modal-btn" onClick={() => { setModalOpen(true); logAction("Open Modal", "Practice modal opened.", "info"); }}>Open Modal</button>
-                <button data-testid="lab-random-popup-btn" onClick={() => logAction("Trigger Random Popup", "Random practice popup event triggered.", "success", { popupId: "POPUP-" + Math.floor(Math.random() * 1000) })}>Random Popup</button>
+                <button data-testid="lab-random-popup-btn" onClick={handleTriggerRandomPopup}>Random Popup</button>
               </div>
+
+              {renderCustomCountdownSection()}
             </section>
           )}
 
@@ -985,6 +1328,75 @@ export default function AutomationLabPage() {
                 onClick={() => setSentMessageModal(null)}
               >
                 OK / Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {randomPopup && (
+        <div
+          className="modal-backdrop"
+          data-testid="lab-random-popup-backdrop"
+          onClick={() => setRandomPopup(null)}
+        >
+          <div
+            className="modal"
+            data-testid="lab-random-popup-modal"
+            role="alertdialog"
+            aria-labelledby="lab-random-popup-title"
+            aria-describedby="lab-random-popup-message"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="between" style={{ marginBottom: "12px", alignItems: "center" }}>
+              <span
+                className={`status-badge ${randomPopup.severity}`}
+                data-testid="lab-random-popup-badge"
+              >
+                {randomPopup.severity.toUpperCase()} ALERT
+              </span>
+              <code
+                data-testid="lab-random-popup-id"
+                style={{
+                  fontSize: "12px",
+                  padding: "4px 8px",
+                  borderRadius: "6px",
+                  background: darkMode ? "#0f172a" : "#f1f5f9",
+                  color: darkMode ? "#94a3b8" : "#475569",
+                }}
+              >
+                {randomPopup.popupId} · {randomPopup.timestamp}
+              </code>
+            </div>
+
+            <h2 id="lab-random-popup-title" data-testid="lab-random-popup-title" style={{ margin: "0 0 8px" }}>
+              {randomPopup.title}
+            </h2>
+            <p id="lab-random-popup-message" data-testid="lab-random-popup-message" style={{ lineHeight: 1.5 }}>
+              {randomPopup.message}
+            </p>
+
+            <div className="right" style={{ marginTop: "18px", gap: "10px" }}>
+              <button
+                type="button"
+                data-testid="lab-random-popup-next-btn"
+                onClick={handleTriggerRandomPopup}
+                style={{
+                  background: darkMode ? "#334155" : "#e2e8f0",
+                  color: darkMode ? "#f8fafc" : "#1e293b",
+                }}
+              >
+                Trigger Another
+              </button>
+              <button
+                type="button"
+                data-testid="lab-random-popup-close-btn"
+                onClick={() => {
+                  setRandomPopup(null);
+                  logAction("Close Random Popup", `Dismissed random popup ${randomPopup.popupId}.`, "info");
+                }}
+              >
+                Acknowledge & Close
               </button>
             </div>
           </div>

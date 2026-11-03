@@ -109,6 +109,8 @@ export default function AdminUserManagementPage() {
   const [form, setForm] = useState<ExtendedForm>(emptyForm);
   const [error, setError] = useState("");
   const [bulkCount, setBulkCount] = useState(3);
+  const [bulkCountInput, setBulkCountInput] = useState("3");
+  const [bulkCountError, setBulkCountError] = useState("");
   const [showActiveOnly, setShowActiveOnly] = useState(false);
   const [recentlyCreated, setRecentlyCreated] = useState(false);
   const [neverLoggedIn, setNeverLoggedIn] = useState(false);
@@ -235,19 +237,21 @@ const [resetPasswordError, setResetPasswordError] =
 
   function validate() {
     if (!form.name.trim()) return "Name required";
+    if (form.name.trim().length < 2) return "Name must be at least 2 characters";
     if (!form.email.trim()) return "Email required";
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) {
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) {
       return "Valid email format required";
     }
     if (modal === "create") {
-  if (!form.password) {
-    return "Password required";
-  }
-
-  if (form.password.length < 6) {
-    return "Password minimum length is 6";
-  }
-}
+      if (!form.password) {
+        return "Password required";
+      }
+      if (form.password.length < 6) {
+        return "Password minimum length is 6";
+      }
+    } else if (form.password.trim() && form.password.trim().length < 6) {
+      return "Password minimum length is 6";
+    }
 
     if (!loggedInIsSuperUser && form.role !== "Test User") {
       return "Admin users can create or update Test Users only";
@@ -762,22 +766,52 @@ function handleGenerateTestUsers() {
           Bulk Disable
         </button>
         
-        <div className="generate-users-control" data-testid="user-management-generate-users-control">
+        <div className="generate-users-control" data-testid="user-management-generate-users-control" style={{ flexWrap: "wrap" }}>
           <span>Generate Multiple Random Users:</span>
           <input
             data-testid="user-management-random-user-count-input"
             type="number"
             min="1"
             max="50"
-            value={bulkCount}
-            onChange={(event) => setBulkCount(Math.max(1, Number(event.target.value)))}
+            value={bulkCountInput}
+            onChange={(event) => {
+              const raw = event.target.value;
+              setBulkCountInput(raw);
+              const num = Number(raw);
+              if (!raw.trim() || !Number.isInteger(num) || num < 1 || num > 50) {
+                setBulkCountError("Enter a valid count between 1 and 50");
+              } else {
+                setBulkCountError("");
+                setBulkCount(num);
+              }
+            }}
           />
           <button
-  data-testid="user-management-generate-random-users-button"
-  onClick={() => setGenerateUserModal(true)}
->
-  Generate
-</button>
+            data-testid="user-management-generate-random-users-button"
+            onClick={() => {
+              const num = Number(bulkCountInput);
+              if (!bulkCountInput.trim() || !Number.isInteger(num) || num < 1 || num > 50) {
+                setBulkCountError("Enter a valid count between 1 and 50");
+                showToast("Enter a valid user count between 1 and 50", "error");
+                return;
+              }
+              setBulkCountError("");
+              setBulkCount(num);
+              setGenerateUserModal(true);
+            }}
+          >
+            Generate
+          </button>
+          {bulkCountError && (
+            <span
+              className="error"
+              data-testid="user-management-bulk-count-error"
+              role="alert"
+              style={{ padding: "4px 10px", fontSize: "12px", borderRadius: "8px" }}
+            >
+              {bulkCountError}
+            </span>
+          )}
         </div>
 
         
@@ -1186,10 +1220,17 @@ function handleGenerateTestUsers() {
 
       <input
         type="password"
+        data-testid="reset-password-input"
         value={newPassword}
         onChange={(event) => {
           setNewPassword(event.target.value);
           setResetPasswordError("");
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            handleResetPassword();
+          }
         }}
         placeholder="Enter new password"
       />
@@ -1208,13 +1249,15 @@ function handleGenerateTestUsers() {
       </small>
 
       {resetPasswordError && (
-        <div className="error">
+        <div className="error" data-testid="reset-password-error-alert" role="alert">
           {resetPasswordError}
         </div>
       )}
 
       <div className="right">
         <button
+          type="button"
+          data-testid="reset-password-cancel-button"
           onClick={() => {
             setResetModalUser(null);
             setNewPassword("");
@@ -1224,7 +1267,11 @@ function handleGenerateTestUsers() {
           Cancel
         </button>
 
-        <button onClick={handleResetPassword}>
+        <button
+          type="button"
+          data-testid="reset-password-submit-button"
+          onClick={handleResetPassword}
+        >
           Reset
         </button>
       </div>

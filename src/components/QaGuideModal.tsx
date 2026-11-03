@@ -82,6 +82,11 @@ const LOCATOR_ENTRIES: LocatorEntry[] = [
   { module: "Automation Lab", element: "Multi-Select Listbox", testId: "lab-multiselect", description: "Multi-selection options listbox" },
   { module: "Automation Lab", element: "Range Slider", testId: "lab-range-slider", description: "Interactive range threshold slider" },
   { module: "Automation Lab", element: "Async Loading Button", testId: "lab-loading-state-btn", description: "Triggers 1.5s loading state for explicit wait tests" },
+  { module: "Automation Lab", element: "Custom Countdown Input", testId: "lab-custom-countdown-input", description: "Numeric countdown wait input (1–30s max validation)" },
+  { module: "Automation Lab", element: "Start Countdown Button", testId: "lab-custom-countdown-btn", description: "Starts the live countdown timer" },
+  { module: "Automation Lab", element: "Countdown Timer Display", testId: "lab-custom-countdown-timer", description: "Displays live remaining seconds ('Waiting... Xs remaining')" },
+  { module: "Automation Lab", element: "Random Popup Trigger", testId: "lab-random-popup-btn", description: "Triggers a random alert modal and toast popup" },
+  { module: "Automation Lab", element: "Random Popup Modal", testId: "lab-random-popup-modal", description: "Random popup dialog with severity badge and acknowledge button" },
   { module: "Automation Lab", element: "Live Inspector Panel", testId: "automation-lab-inspector-panel", description: "Real-time action and state inspector console" },
 ];
 
@@ -310,3 +315,4 @@ export default function QaGuideModal({ open, onClose }: QaGuideModalProps) {
     </div>
   );
 }
+

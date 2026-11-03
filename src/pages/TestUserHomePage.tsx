@@ -3,10 +3,38 @@ import { useApp } from "../context/AppContext";
 import SummaryCard from "../components/SummaryCard";
 
 export default function TestUserHomePage() {
-  const { users, currentUser, updateOwnProfile } = useApp();
+  const { users, currentUser, updateOwnProfile, showToast } = useApp();
 
   const [name, setName] = useState(currentUser?.name || "");
   const [password, setPassword] = useState("");
+  const [profileError, setProfileError] = useState("");
+
+  function handleUpdateProfile(requirePassword = false) {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setProfileError("Name is required");
+      showToast("Name is required", "error");
+      return;
+    }
+    if (trimmedName.length < 2) {
+      setProfileError("Name must be at least 2 characters");
+      showToast("Name must be at least 2 characters", "error");
+      return;
+    }
+    if (requirePassword && !password.trim()) {
+      setProfileError("Please enter a new password (minimum 6 characters)");
+      showToast("Please enter a new password", "error");
+      return;
+    }
+    if (password.trim() && password.trim().length < 6) {
+      setProfileError("Password must be at least 6 characters");
+      showToast("Password must be at least 6 characters", "error");
+      return;
+    }
+    setProfileError("");
+    updateOwnProfile(trimmedName, password.trim());
+    if (password.trim()) setPassword("");
+  }
 
   return (
     <main data-testid="test-user-dashboard" aria-label="Test user dashboard">
@@ -38,13 +66,28 @@ export default function TestUserHomePage() {
         <p data-testid="test-user-profile-email">Email: {currentUser?.email}</p>
         <p data-testid="test-user-profile-role">Role: {currentUser?.role}</p>
 
+        {profileError && (
+          <div className="error" data-testid="test-user-profile-error" role="alert" style={{ marginBottom: "10px" }}>
+            {profileError}
+          </div>
+        )}
+
         <label htmlFor="test-user-profile-name-input">Name</label>
         <input
           id="test-user-profile-name-input"
           data-testid="test-user-profile-name-input"
           aria-label="Profile name"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value);
+            if (profileError) setProfileError("");
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleUpdateProfile(false);
+            }
+          }}
         />
 
         <label htmlFor="test-user-profile-password-input">New Password</label>
@@ -53,8 +96,17 @@ export default function TestUserHomePage() {
           data-testid="test-user-change-password-input"
           aria-label="New password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Optional"
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (profileError) setProfileError("");
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleUpdateProfile(false);
+            }
+          }}
+          placeholder="Optional (min 6 characters)"
           type="password"
         />
 
@@ -62,7 +114,7 @@ export default function TestUserHomePage() {
           <button
             data-testid="test-user-update-profile-button"
             aria-label="Update own profile"
-            onClick={() => updateOwnProfile(name, password)}
+            onClick={() => handleUpdateProfile(false)}
           >
             Update Own Profile
           </button>
@@ -70,7 +122,7 @@ export default function TestUserHomePage() {
             type="button"
             data-testid="test-user-change-password-button"
             aria-label="Change password"
-            onClick={() => updateOwnProfile(name, password)}
+            onClick={() => handleUpdateProfile(true)}
           >
             Change Password
           </button>

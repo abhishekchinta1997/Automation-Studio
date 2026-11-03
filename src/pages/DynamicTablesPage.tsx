@@ -80,7 +80,7 @@ function matchesBySearchMode(values: string[], query: string, mode: TableSearchM
 }
 
 export default function DynamicTablesPage() {
-  const { showToast, darkMode } = useApp();
+  const { showToast, darkMode, recordAuditEvent } = useApp();
 
   const [records, setRecords] = useState<DynamicRecord[]>(loadRecords);
   const [searchQuery, setSearchQuery] = useState("");
@@ -229,6 +229,11 @@ export default function DynamicTablesPage() {
     setRecords((prev) => prev.map((r) => (r.id === id ? updated : r)));
     setEditingId(null);
     setEditError("");
+    recordAuditEvent(
+      "Table Record Updated",
+      `Updated record ${name} (${id}) — Role: ${role}, Status: ${editForm.status}`,
+      { source: "Dynamic Web Tables", targetUser: `${name} (${id})`, level: "Info", status: "Success" }
+    );
     showToast(`Updated record ${id} successfully`, "success");
   }
 
@@ -246,18 +251,33 @@ export default function DynamicTablesPage() {
     setSortDirection("asc");
     setCurrentPage(1);
     cancelEdit();
+    recordAuditEvent(
+      "Table Data Reset",
+      `Reset Dynamic Web Tables dataset to ${initialDynamicRecords.length} default records`,
+      { source: "Dynamic Web Tables", targetUser: "All Records", level: "Warning", status: "Warning" }
+    );
     showToast("Table data reset to defaults", "info");
   }
 
   // Export CSV (exports the full filtered/sorted set, not just the current page)
   function exportCSV() {
     downloadFile(recordsToCSV(filteredRecords), "dynamic_web_tables_export.csv", "text/csv");
+    recordAuditEvent(
+      "Table CSV Export",
+      `Exported ${filteredRecords.length} record(s) from Dynamic Web Tables to CSV`,
+      { source: "Dynamic Web Tables", targetUser: `${filteredRecords.length} record(s)`, level: "Info", status: "Success" }
+    );
     showToast(`Exported ${filteredRecords.length} record(s) to CSV successfully!`, "success");
   }
 
   // Export JSON
   function exportJSON() {
     downloadFile(JSON.stringify(filteredRecords, null, 2), "dynamic_web_tables_export.json", "application/json");
+    recordAuditEvent(
+      "Table JSON Export",
+      `Exported ${filteredRecords.length} record(s) from Dynamic Web Tables to JSON`,
+      { source: "Dynamic Web Tables", targetUser: `${filteredRecords.length} record(s)`, level: "Info", status: "Success" }
+    );
     showToast(`Exported ${filteredRecords.length} record(s) to JSON successfully!`, "success");
   }
 

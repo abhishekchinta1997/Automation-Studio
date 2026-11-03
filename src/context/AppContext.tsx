@@ -46,6 +46,16 @@ interface AppContextType {
   resetPassword: (id: string) => void;
   createRandomUsers: (count: number, role: "Admin User" | "Test User") => void;
   updateOwnProfile: (name: string, password: string) => void;
+  recordAuditEvent: (
+    action: string,
+    details: string,
+    options?: {
+      source?: string;
+      targetUser?: string;
+      level?: SystemLog["level"];
+      status?: "Success" | "Warning" | "Failed";
+    }
+  ) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -81,9 +91,66 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     localStorage.setItem("automation-users", JSON.stringify(users));
   }, [users]);
-  const [activity, setActivity] = useState<ActivityItem[]>(initialActivity);
-  const [loginAttempts, setLoginAttempts] = useState<LoginAttempt[]>([]);
-  const [systemLogs, setSystemLogs] = useState<SystemLog[]>([]);
+  const [activity, setActivity] = useState<ActivityItem[]>(() => {
+    try {
+      const saved = sessionStorage.getItem("automation-session-activity");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return initialActivity;
+  });
+  const [loginAttempts, setLoginAttempts] = useState<LoginAttempt[]>(() => {
+    try {
+      const saved = sessionStorage.getItem("automation-session-login-attempts");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return [];
+  });
+  const [systemLogs, setSystemLogs] = useState<SystemLog[]>(() => {
+    try {
+      const saved = sessionStorage.getItem("automation-session-system-logs");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("automation-session-activity", JSON.stringify(activity));
+    } catch (e) {
+      // ignore
+    }
+  }, [activity]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("automation-session-login-attempts", JSON.stringify(loginAttempts));
+    } catch (e) {
+      // ignore
+    }
+  }, [loginAttempts]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("automation-session-system-logs", JSON.stringify(systemLogs));
+    } catch (e) {
+      // ignore
+    }
+  }, [systemLogs]);
   const [currentUser, setCurrentUser] = useState<AppUser | null>(() => {
     const saved = localStorage.getItem("automation-current-user");
     if (!saved) return null;
@@ -240,10 +307,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   function updateUser(id: string, changes: Partial<AppUser>) {
+    const target = users.find((u) => u.id === id);
+    const targetLabel = target ? `${target.name} (${id})` : id;
     setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...changes } : u)));
     syncCurrentUser([id], changes);
-    addActivity(`Updated user ${id}`, { action: "User Updated", user: id, performedBy: currentUser?.name || "System", status: "Success" });
-    addSystemLog("Info", "User Management", "User Updated", `User ${id} was updated. Changed fields: ${Object.keys(changes).join(", ") || "none"}.`);
+
+    const changedKeys = Object.keys(changes);
+    let actionLabel = "User Updated";
+    let statusLabel: "Success" | "Warning" = "Success";
+    let logLevel: SystemLog["level"] = "Info";
+
+    if (changedKeys.length === 1 && "locked" in changes) {
+      actionLabel = changes.locked ? "User Locked" : "User Unlocked";
+      statusLabel = changes.locked ? "Warning" : "Success";
+      logLevel = changes.locked ? "Warning" : "Info";
+    } else if (changedKeys.length === 1 && "status" in changes) {
+      actionLabel = `User ${changes.status}`;
+      statusLabel = changes.status === "Disabled" ? "Warning" : "Success";
+      logLevel = changes.status === "Disabled" ? "Warning" : "Info";
+    } else if (changedKeys.length === 1 && "role" in changes) {
+      actionLabel = `Role Changed to ${changes.role}`;
+    }
+
+    addActivity(`${actionLabel}: ${targetLabel}`, {
+      action: actionLabel,
+      user: targetLabel,
+      performedBy: currentUser?.name || "System",
+      status: statusLabel,
+    });
+    addSystemLog(
+      logLevel,
+      "User Management",
+      actionLabel,
+      `${targetLabel} updated. Changed fields: ${changedKeys.join(", ") || "none"}.`
+    );
     showToast("User updated");
   }
 
@@ -263,10 +360,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   function resetPassword(id: string) {
+    const target = users.find((u) => u.id === id);
+    const targetLabel = target ? `${target.name} (${id})` : id;
     setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, password: "Password123" } : u)));
     syncCurrentUser([id], { password: "Password123" });
-    addActivity(`Password reset for ${id}`, { action: "Password Reset", user: id, performedBy: currentUser?.name || "System", status: "Success" });
-    addSystemLog("Info", "Security", "Password Reset", `Password was reset for user ${id}.`);
+    addActivity(`Password reset for ${targetLabel}`, { action: "Password Reset", user: targetLabel, performedBy: currentUser?.name || "System", status: "Success" });
+    addSystemLog("Info", "Security", "Password Reset", `Password was reset for user ${targetLabel}.`);
     showToast("Password reset to Password123", "info");
   }
 
@@ -287,6 +386,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addActivity(`${updated.name} updated own profile`, { action: "Profile Updated", user: updated.name, performedBy: updated.name, status: "Success" });
     addSystemLog("Info", "Profile", "Profile Updated", `${updated.name} updated their own profile.`);
     showToast("Profile updated");
+  }
+
+  function recordAuditEvent(
+    action: string,
+    details: string,
+    options?: {
+      source?: string;
+      targetUser?: string;
+      level?: SystemLog["level"];
+      status?: "Success" | "Warning" | "Failed";
+    }
+  ) {
+    const actor = currentUser?.name || "Admin";
+    addActivity(details, {
+      action,
+      user: options?.targetUser || details,
+      performedBy: actor,
+      status: options?.status || "Success",
+    });
+    addSystemLog(
+      options?.level || "Info",
+      options?.source || "Admin Dashboard",
+      action,
+      details
+    );
   }
 
   const value = useMemo(() => ({
@@ -310,6 +434,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     createRandomUsers,
     updateOwnProfile,
+    recordAuditEvent,
   }), [currentUser, users, activity, loginAttempts, systemLogs, darkMode, themePreference, toast]);
 
   return <AppContext.Provider value={value}><div className={darkMode ? "dark" : ""}>{children}</div></AppContext.Provider>;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "../context/AppContext";
-import { useNavigate } from "react-router-dom";
+import { initialUsers } from "../data/mockUsers";
+import { AppUser } from "../types/user";
 
 type ModalType =
   | "total"
@@ -9,32 +10,38 @@ type ModalType =
   | "test"
   | "locked"
   | "disabled"
-  | "alert"
-  | "nested"
-  | "random"
   | "superUserProfile"
   | null;
 
-type DashboardModal = {
+type FormattedUserRow = {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  role: string;
+  lastLogin: string;
+  createdDate: string;
+};
+
+type DashboardModalState = {
   type: ModalType;
   title: string;
-  rows?: any[];
-  details?: string;
+  rows?: FormattedUserRow[];
 };
 
 function getToday() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function isSuperUser(user: any) {
+function isSuperUser(user: Partial<AppUser> | null | undefined) {
   return user?.id === "USR-1001" || user?.email === "admin@example.com" || user?.role === "Super User";
 }
 
-function isAdminUser(user: any) {
-  return user?.role === "Admin" || user?.role === "Admin User" || isSuperUser(user);
+function isAdminUser(user: Partial<AppUser> | null | undefined) {
+  return user?.role === "Admin User" || isSuperUser(user);
 }
 
-function isLocked(user: any) {
+function isLocked(user: Partial<AppUser> | null | undefined) {
   return user?.locked === true || user?.status === "Locked";
 }
 
@@ -50,113 +57,106 @@ function testIdSlug(value: string) {
     .replace(/^-|-$/g, "");
 }
 
-function formatUser(user: any) {
+function formatUser(user: Partial<AppUser> | null | undefined): FormattedUserRow {
   return {
     id: user?.id || "USR-0000",
     name: user?.name || "Unknown User",
     email: user?.email || "unknown@example.com",
-    status: isLocked(user) ? "Locked" : user?.status || "Active",
+    status: isLocked(user) ? `${user?.status || "Active"} (Locked)` : user?.status || "Active",
     role: isSuperUser(user) ? "Super User" : user?.role || "Test User",
     lastLogin: user?.lastLogin || "Never",
     createdDate: user?.createdDate || getToday(),
   };
 }
 
-function fallbackUsers(today: string) {
-  return [
-    { id: "USR-1001", name: "Platform Super Admin", email: "admin@example.com", role: "Super User", status: "Active", lastLogin: `${today} 08:40`, createdDate: "2024-01-15" },
-    { id: "USR-1042", name: "Maya Patel", email: "maya.patel@example.com", role: "Admin User", status: "Active", lastLogin: `${today} 09:12`, createdDate: "2024-04-03" },
-    { id: "USR-1051", name: "Jordan Lee", email: "jordan.lee@example.com", role: "Admin User", status: "Locked", locked: true, lastLogin: `${today} 07:55`, createdDate: "2024-05-18" },
-    { id: "USR-1088", name: "Priya Kumar", email: "priya.kumar@example.com", role: "Test User", status: "Disabled", lastLogin: "Never", createdDate: today },
-    { id: "USR-1095", name: "Alex Morgan", email: "alex.morgan@example.com", role: "Test User", status: "Active", lastLogin: `${today} 10:18`, createdDate: today },
-  ];
-}
-
 export default function AdminHomePage() {
-  const { users, activity, loginAttempts, systemLogs, currentUser, showToast } = useApp();
-  const navigate = useNavigate();
+  const { users, activity, loginAttempts, systemLogs, currentUser, showToast, recordAuditEvent } = useApp();
   const today = getToday();
-  const dashboardUsers = users?.length ? users : fallbackUsers(today);
+  const dashboardUsers = users?.length ? users : initialUsers;
 
-  const [modal, setModal] = useState<DashboardModal>({ type: null, title: "" });
+  const [modal, setModal] = useState<DashboardModalState>({ type: null, title: "" });
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [activityFilter, setActivityFilter] = useState("today");
+  const [activityFilter, setActivityFilter] = useState<"today" | "7days" | "30days">("today");
   const [activitySearch, setActivitySearch] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [emptyState, setEmptyState] = useState(false);
-  const [validationError, setValidationError] = useState("");
-  const [skeleton, setSkeleton] = useState(false);
-  const [infiniteLoader, setInfiniteLoader] = useState(false);
-  const [exportProgress, setExportProgress] = useState(false);
 
   const canUseSuperActions = isSuperUser(currentUser);
   const canUseAdminActions = isAdminUser(currentUser);
-  const loggedInProfile =
-  currentUser
+  const loggedInProfile = currentUser
     ? formatUser(currentUser)
-    : formatUser(
-        dashboardUsers.find((u: any) =>
-          isSuperUser(u)
-        ) || fallbackUsers(today)[0]
-      );
+    : formatUser(dashboardUsers.find((u) => isSuperUser(u)) || dashboardUsers[0]);
 
-      useEffect(() => {
-  function handleScroll() {
-    setShowScrollTop(window.scrollY > 300);
-  }
-
-  window.addEventListener(
-    "scroll",
-    handleScroll
-  );
-
-  return () => {
-    window.removeEventListener(
-      "scroll",
-      handleScroll
-    );
-  };
-}, []);
+  useEffect(() => {
+    function handleScroll() {
+      setShowScrollTop(window.scrollY > 300);
+    }
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const counts = useMemo(() => {
-    const superUsers = dashboardUsers.filter((u: any) => isSuperUser(u)).length;
-    const adminUsers = dashboardUsers.filter((u: any) => !isSuperUser(u) && (u.role === "Admin" || u.role === "Admin User")).length;
-    const testUsers = dashboardUsers.filter((u: any) => u.role === "Test User").length;
-    const disabledUsers = dashboardUsers.filter((u: any) => u.status === "Disabled").length;
-    const lockedUsers = dashboardUsers.filter((u: any) => isLocked(u)).length;
-    const activeUsers = dashboardUsers.filter((u: any) => u.status === "Active" && !isLocked(u)).length;
-    const createdToday = dashboardUsers.filter((u: any) => u.createdDate === today).length;
+    const superUsers = dashboardUsers.filter((u) => isSuperUser(u)).length;
+    const adminUsers = dashboardUsers.filter((u) => !isSuperUser(u) && u.role === "Admin User").length;
+    const testUsers = dashboardUsers.filter((u) => u.role === "Test User").length;
+    const disabledUsers = dashboardUsers.filter((u) => u.status === "Disabled").length;
+    const lockedUsers = dashboardUsers.filter((u) => isLocked(u)).length;
+    const activeUsers = dashboardUsers.filter((u) => u.status === "Active" && !isLocked(u)).length;
 
-    return { totalUsers: dashboardUsers.length, superUsers, adminUsers, testUsers, activeUsers, disabledUsers, lockedUsers, createdToday };
-  }, [dashboardUsers, today]);
+    return {
+      totalUsers: dashboardUsers.length,
+      superUsers,
+      adminUsers,
+      testUsers,
+      activeUsers,
+      disabledUsers,
+      lockedUsers,
+    };
+  }, [dashboardUsers]);
 
-  const usersByType = {
+  const usersByType: Record<Exclude<ModalType, "superUserProfile" | null>, AppUser[]> = {
     total: dashboardUsers,
-    super: dashboardUsers.filter((u: any) => isSuperUser(u)),
-    admin: dashboardUsers.filter((u: any) => !isSuperUser(u) && (u.role === "Admin" || u.role === "Admin User")),
-    test: dashboardUsers.filter((u: any) => u.role === "Test User"),
-    locked: dashboardUsers.filter((u: any) => isLocked(u)),
-    disabled: dashboardUsers.filter((u: any) => u.status === "Disabled"),
+    super: dashboardUsers.filter((u) => isSuperUser(u)),
+    admin: dashboardUsers.filter((u) => !isSuperUser(u) && u.role === "Admin User"),
+    test: dashboardUsers.filter((u) => u.role === "Test User"),
+    locked: dashboardUsers.filter((u) => isLocked(u)),
+    disabled: dashboardUsers.filter((u) => u.status === "Disabled"),
   };
 
   const activityRows = useMemo(() => {
-    return (activity || []).map((item: any) => ({
-      type: item.action || item.message || "User Activity",
-      icon: item.status === "Failed" ? "⛔" : item.status === "Warning" ? "⚠️" : "📌",
-      user: item.user || item.userName || "User",
-      performedBy: item.performedBy || currentUser?.name || "System",
-      dateTime: item.dateTime || item.time || today,
-      status: item.status || "Success",
-    })).filter((row: any) => {
-      const query = activitySearch.toLowerCase();
-      const matchesSearch = !query || `${row.type} ${row.user} ${row.performedBy} ${row.status}`.toLowerCase().includes(query);
-      if (!matchesSearch) return false;
-      if (activityFilter === "today") return String(row.dateTime).includes(today) || String(row.dateTime).includes(new Date().toLocaleDateString());
-      return true;
-    });
+    return (activity || [])
+      .map((item) => ({
+        id: item.id,
+        type: item.action || item.message || "User Activity",
+        user: item.user || "User",
+        performedBy: item.performedBy || currentUser?.name || "System",
+        dateTime: item.dateTime || item.time || today,
+        status: item.status || "Success",
+      }))
+      .filter((row) => {
+        const query = activitySearch.trim().toLowerCase();
+        const matchesSearch =
+          !query ||
+          `${row.type} ${row.user} ${row.performedBy} ${row.status}`.toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+        if (activityFilter === "today") {
+          const dt = String(row.dateTime);
+          const localeToday = new Date().toLocaleDateString();
+          return (
+            dt.includes(today) ||
+            dt.includes(localeToday) ||
+            !dt.match(/^\d{4}-\d{2}-\d{2}/)
+          );
+        }
+        return true;
+      });
   }, [activity, activityFilter, activitySearch, currentUser?.name, today]);
 
-  const summaryCards = [
+  const summaryCards: {
+    key: Exclude<ModalType, "superUserProfile" | null>;
+    title: string;
+    count: number;
+    icon: string;
+    tone: string;
+  }[] = [
     { key: "total", title: "Total Users", count: counts.totalUsers, icon: "👥", tone: "purple" },
     { key: "super", title: "Super Users", count: counts.superUsers, icon: "🛡️", tone: "indigo" },
     { key: "admin", title: "Admin Users", count: counts.adminUsers, icon: "🧑‍💼", tone: "blue" },
@@ -166,32 +166,51 @@ export default function AdminHomePage() {
   ];
 
   const quickActions = [
-    { label: "Export to CSV", icon: "📄", testId: "admin-dashboard-export-csv-button", action: () => exportUsersCsv(dashboardUsers) },
-    { label: "Export to Excel", icon: "📗", testId: "admin-dashboard-export-excel-button", action: () => exportUsersExcel(dashboardUsers) },
-    { label: "Export to PDF", icon: "📕", testId: "admin-dashboard-export-pdf-button", action: exportUsersPdf },
-    { label: "View Recent Activity", icon: "🕘", testId: "admin-dashboard-recent-activity-button", action: () => document.getElementById("recent-activity-section")?.scrollIntoView({ behavior: "smooth" }) },
-    { label: "Open User Analytics", icon: "📊", testId: "admin-dashboard-user-analytics-button", action: () => document.getElementById("analytics-section")?.scrollIntoView({ behavior: "smooth" }) },
-    { label: "Open System Logs", icon: "🧾", testId: "admin-dashboard-system-logs-button", action: () => document.getElementById("system-logs-section")?.scrollIntoView({ behavior: "smooth" }) },
-    { label: "Download Audit Report", icon: "📥", testId: "admin-dashboard-download-audit-report-button", action: downloadAuditReport },
-    { label: "View Login Attempts", icon: "⛔", testId: "admin-dashboard-login-attempts-button", action: () => document.getElementById("login-attempts-section")?.scrollIntoView({ behavior: "smooth" }) },
-    { label: "Open Automation Lab", icon: "🤖", testId: "admin-dashboard-open-automation-practice-button", action: () => navigate("/admin/lab") },
+    {
+      label: "Export CSV",
+      icon: "📄",
+      testId: "admin-dashboard-export-csv-button",
+      action: () => exportUsersCsv(dashboardUsers),
+    },
+    {
+      label: "Export Excel",
+      icon: "📗",
+      testId: "admin-dashboard-export-excel-button",
+      action: () => exportUsersExcel(dashboardUsers),
+    },
+    {
+      label: "Export PDF",
+      icon: "📕",
+      testId: "admin-dashboard-export-pdf-button",
+      action: exportUsersPdf,
+    },
+    {
+      label: "View Recent Activity",
+      icon: "🕘",
+      testId: "admin-dashboard-recent-activity-button",
+      action: () => document.getElementById("recent-activity-section")?.scrollIntoView({ behavior: "smooth" }),
+    },
+    {
+      label: "Open User Analytics",
+      icon: "📊",
+      testId: "admin-dashboard-user-analytics-button",
+      action: () => document.getElementById("analytics-section")?.scrollIntoView({ behavior: "smooth" }),
+    },
   ];
 
-  function openUserList(key: string, title: string) {
-    setModal({ type: key as ModalType, title, rows: (usersByType as any)[key].map(formatUser) });
+  function openUserList(key: Exclude<ModalType, "superUserProfile" | null>, title: string) {
+    setModal({ type: key, title, rows: usersByType[key].map(formatUser) });
   }
 
-  function openDetails(title: string, details: string) {
-    setModal({ type: "alert", title, details });
-  }
-
-  function exportUsersCsv(exportUsers: any[]) {
+  function exportUsersCsv(exportUsers: AppUser[]) {
     const header = ["User ID", "Name", "Email", "Role", "Status", "Created Date", "Last Login"];
-    const rows = exportUsers.map((u: any) => {
+    const rows = exportUsers.map((u) => {
       const user = formatUser(u);
       return [user.id, user.name, user.email, user.role, user.status, user.createdDate, user.lastLogin];
     });
-    const csv = [header, ...rows].map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csv = [header, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(","))
+      .join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -199,17 +218,27 @@ export default function AdminHomePage() {
     link.download = "admin-users-export.csv";
     link.click();
     URL.revokeObjectURL(url);
+    recordAuditEvent(
+      "Export Users CSV",
+      `Exported ${exportUsers.length} user record(s) to CSV`,
+      { source: "Admin Dashboard", targetUser: `${exportUsers.length} user(s)`, level: "Info", status: "Success" }
+    );
     showToast("Users CSV exported", "success");
   }
 
-  function exportUsersExcel(exportUsers: any[]) {
+  function exportUsersExcel(exportUsers: AppUser[]) {
     const header = ["User ID", "Name", "Email", "Role", "Status", "Created Date", "Last Login"];
-    const rows = exportUsers.map((u: any) => {
+    const rows = exportUsers.map((u) => {
       const user = formatUser(u);
       return [user.id, user.name, user.email, user.role, user.status, user.createdDate, user.lastLogin];
     });
     const table = [header, ...rows]
-      .map((row) => `<tr>${row.map((cell) => `<td>${String(cell ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;")}</td>`).join("")}</tr>`)
+      .map(
+        (row) =>
+          `<tr>${row
+            .map((cell) => `<td>${String(cell ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;")}</td>`)
+            .join("")}</tr>`
+      )
       .join("");
     const excelHtml = `<html><head><meta charset="UTF-8" /></head><body><table>${table}</table></body></html>`;
     const blob = new Blob([excelHtml], { type: "application/vnd.ms-excel;charset=utf-8;" });
@@ -219,150 +248,114 @@ export default function AdminHomePage() {
     link.download = "admin-users-export.xls";
     link.click();
     URL.revokeObjectURL(url);
+    recordAuditEvent(
+      "Export Users Excel",
+      `Exported ${exportUsers.length} user record(s) to Excel`,
+      { source: "Admin Dashboard", targetUser: `${exportUsers.length} user(s)`, level: "Info", status: "Success" }
+    );
     showToast("Users Excel exported", "success");
   }
 
   function exportUsersPdf() {
-  const users = dashboardUsers.map((u: any) => {
-    const user = formatUser(u);
+    const rowsHtml = dashboardUsers
+      .map((u) => {
+        const user = formatUser(u);
+        return `
+          <tr>
+            <td>${user.id}</td>
+            <td>${user.name}</td>
+            <td>${user.email}</td>
+            <td>${user.role}</td>
+            <td>${user.status}</td>
+            <td>${user.createdDate}</td>
+            <td>${user.lastLogin}</td>
+          </tr>
+        `;
+      })
+      .join("");
 
-    return `
-      <tr>
-        <td>${user.id}</td>
-        <td>${user.name}</td>
-        <td>${user.email}</td>
-        <td>${user.role}</td>
-        <td>${user.status}</td>
-        <td>${user.createdDate}</td>
-        <td>${user.lastLogin}</td>
-      </tr>
-    `;
-  }).join("");
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>User Table Export</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 24px; }
+              h1 { margin-bottom: 20px; }
+              table { width: 100%; border-collapse: collapse; }
+              th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+              th { background: #f3f4f6; }
+            </style>
+          </head>
+          <body>
+            <h1>User Management Report</h1>
+            <table>
+              <thead>
+                <tr>
+                  <th>User ID</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Created Date</th>
+                  <th>Last Login</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
+    }
 
-  const printWindow = window.open(
-    "",
-    "_blank"
-  );
-
-  if (!printWindow) return;
-
-  printWindow.document.write(`
-    <html>
-      <head>
-        <title>User Table Export</title>
-
-        <style>
-          body {
-            font-family: Arial;
-            padding: 24px;
-          }
-
-          h1 {
-            margin-bottom: 20px;
-          }
-
-          table {
-            width: 100%;
-            border-collapse: collapse;
-          }
-
-          th,
-          td {
-            border: 1px solid #ccc;
-            padding: 10px;
-            text-align: left;
-          }
-
-          th {
-            background: #f3f4f6;
-          }
-        </style>
-      </head>
-
-      <body>
-        <h1>User Management Report</h1>
-
-        <table>
-          <thead>
-            <tr>
-              <th>User ID</th>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Created Date</th>
-              <th>Last Login</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            ${users}
-          </tbody>
-        </table>
-      </body>
-    </html>
-  `);
-
-  printWindow.document.close();
-
-  printWindow.print();
-
-  showToast(
-    "Users table exported to PDF",
-    "success"
-  );
-}
-
-  function downloadAuditReport() {
-    const text = `Audit Report\nGenerated: ${new Date().toLocaleString()}\nTotal Users: ${counts.totalUsers}\nLocked Users: ${counts.lockedUsers}\nDisabled Users: ${counts.disabledUsers}`;
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "audit-report.txt";
-    link.click();
-    URL.revokeObjectURL(url);
-    showToast("Audit report downloaded", "success");
-  }
-
-  function startTemporaryState(setter: (value: boolean) => void, message: string, type: string = "success", delay = 1200) {
-    setter(true);
-    setTimeout(() => {
-      setter(false);
-      showToast(message, type as any);
-    }, delay);
-  }
-
-  function simulateExportProgress() {
-    setExportProgress(true);
-    setTimeout(() => {
-      setExportProgress(false);
-      showToast("Export completed", "success");
-    }, 1600);
-  }
-
-  function simulateBackgroundSync() {
-    showToast("Background sync completed", "success");
+    recordAuditEvent(
+      "Export Users PDF",
+      `Exported ${dashboardUsers.length} user record(s) to PDF report`,
+      { source: "Admin Dashboard", targetUser: `${dashboardUsers.length} user(s)`, level: "Info", status: "Success" }
+    );
+    showToast("Users table exported to PDF", "success");
   }
 
   return (
     <section className="admin-dashboard enterprise-dashboard" data-testid="admin-dashboard-page">
       <div className="dashboard-hero" data-testid="admin-dashboard-overview-widget">
         <div>
-          <span className="eyebrow">Enterprise Admin Portal</span>
+          <span className="eyebrow">Test Administration Portal</span>
           <h1>Admin Dashboard</h1>
-          <p className="muted">User governance, access monitoring, audit insights, and automation testing practice in one modern dashboard.</p>
+          <p className="muted">
+            User governance, role metrics, and real-time session audit logs for test automation.
+          </p>
         </div>
-        <button className="role-badge purple clickable" data-testid="super-user-badge" aria-label="Open super user details" onClick={() => setModal({ type: "superUserProfile", title: "Super User Details" })}>
+        <button
+          className="role-badge purple clickable"
+          data-testid="super-user-badge"
+          aria-label="Open super user details"
+          onClick={() => setModal({ type: "superUserProfile", title: "Super User Details" })}
+        >
           🛡️ {canUseSuperActions ? "Super User" : "Admin User"}
         </button>
       </div>
 
       <section className="card dashboard-section" data-testid="admin-dashboard-quick-actions-section">
-        <SectionTitle icon="⚡" title="Quick Actions" subtitle="Common admin workflows and export actions for testing." />
+        <SectionTitle
+          icon="⚡"
+          title="Quick Actions"
+          subtitle="Common user export tasks and direct navigation to analytics and session logs."
+        />
         <div className="quick-action-grid modern-actions">
           {quickActions.map((action) => (
-            <button key={action.testId} className="action-card" data-testid={action.testId} onClick={action.action} disabled={!canUseAdminActions}>
+            <button
+              key={action.testId}
+              className="action-card"
+              data-testid={action.testId}
+              onClick={action.action}
+              disabled={!canUseAdminActions}
+            >
               <span>{action.icon}</span>
               <strong>{action.label}</strong>
             </button>
@@ -370,7 +363,10 @@ export default function AdminHomePage() {
         </div>
       </section>
 
-      <section className="summary-card-grid compact-two-column" data-testid="admin-dashboard-summary-cards-section">
+      <section
+        className="summary-card-grid dashboard-summary-grid"
+        data-testid="admin-dashboard-summary-cards-section"
+      >
         {summaryCards.map((card) => (
           <DashboardSummaryCard
             key={card.key}
@@ -384,22 +380,15 @@ export default function AdminHomePage() {
       </section>
 
       <section
-  id="analytics-section"
-  className="card dashboard-section analytics-wrapper"
-  data-testid="admin-dashboard-analytics-section"
->
-  <div className="section-title">
-    <span>📊</span>
-
-    <div>
-      <h2>User Analytics</h2>
-
-      <p className="muted">
-        User statistics, role distribution,
-        system health, and activity insights.
-      </p>
-    </div>
-  </div>
+        id="analytics-section"
+        className="card dashboard-section analytics-wrapper"
+        data-testid="admin-dashboard-analytics-section"
+      >
+        <SectionTitle
+          icon="📊"
+          title="User Analytics"
+          subtitle="Live user status breakdown and role distribution synced with the active user directory."
+        />
         <div className="dashboard-two-column">
           <AnalyticsCard title="User Status Overview" testId="user-status-overview-widget">
             <ProgressRow label="Active Users" value={counts.activeUsers} total={counts.totalUsers} tone="green" />
@@ -412,51 +401,107 @@ export default function AdminHomePage() {
             <ProgressRow label="Test Users" value={counts.testUsers} total={counts.totalUsers} tone="violet" />
           </AnalyticsCard>
         </div>
-
-        <div className="dashboard-widget-grid">
-          <MiniChart title="Login Statistics" testId="login-statistics-chart" values={[8, 14, 10, 18, 24, 21, 29]} />
-          <MiniChart title="User Growth" testId="user-growth-chart" values={[3, 5, 8, 9, 12, 14, counts.totalUsers]} />
-          <DonutWidget title="Active vs Disabled" testId="active-disabled-chart" active={counts.activeUsers} disabled={counts.disabledUsers} />
-          <HealthWidget title="System Health Status" icon="🟢" value="Operational" detail="99.98% uptime" testId="system-health-widget" />
-          <HealthWidget title="API Status" icon="🟣" value="Healthy" detail="182ms avg response" testId="api-status-widget" />
-          <HealthWidget title="Server Status" icon="🔵" value="Stable" detail="CPU 42% · Memory 61%" testId="server-status-widget" />
-        </div>
       </section>
 
-      <section id="recent-activity-section" className="card dashboard-section" data-testid="admin-dashboard-recent-activity-section">
-        <SectionTitle icon="📌" title="Recent Activity" subtitle="Searchable activity stream with test-friendly rows and status badges." />
+      <section
+        id="recent-activity-section"
+        className="card dashboard-section"
+        data-testid="admin-dashboard-recent-activity-section"
+      >
+        <SectionTitle
+          icon="📌"
+          title="Recent Activity"
+          subtitle="Real-time stream of user edits, logins, and table exports performed during this session."
+        />
         <div className="activity-toolbar">
-          {["today", "7days", "30days"].map((filter) => (
-            <button key={filter} className={activityFilter === filter ? "filter-active" : "filter-button"} data-testid={`admin-dashboard-activity-filter-${filter}`} onClick={() => setActivityFilter(filter)}>
+          {(["today", "7days", "30days"] as const).map((filter) => (
+            <button
+              key={filter}
+              type="button"
+              className={activityFilter === filter ? "filter-active" : "filter-button"}
+              data-testid={`admin-dashboard-activity-filter-${filter}`}
+              onClick={() => setActivityFilter(filter)}
+            >
               {filter === "today" ? "Today" : filter === "7days" ? "Last 7 Days" : "Last 30 Days"}
             </button>
           ))}
-          <input data-testid="admin-dashboard-activity-search-input" placeholder="Search activity logs..." value={activitySearch} onChange={(event) => setActivitySearch(event.target.value)} />
+          <input
+            data-testid="admin-dashboard-activity-search-input"
+            placeholder="Search activity logs..."
+            value={activitySearch}
+            onChange={(event) => setActivitySearch(event.target.value)}
+          />
         </div>
-        <div className="activity-list" data-testid="admin-dashboard-activity-log-list">
-          {!activityRows.length && <div className="practice-message empty" data-testid="admin-dashboard-no-recent-activity">No recent activity yet. Login, create users, update users, or export data to populate this stream.</div>}
-          {activityRows.map((row: any, index: number) => (
-            <div className="activity-row" data-testid={`admin-dashboard-activity-row-${testIdSlug(`${row.type}-${row.user}-${row.dateTime}`)}`} key={`${row.type}-${index}`}>
-              <span className={`activity-icon ${row.status.toLowerCase()}`}>{row.icon}</span>
-              <div>
-                <strong>{row.type}</strong>
-                <p>{row.user} · Performed by {row.performedBy}</p>
-              </div>
-              <time>{row.dateTime}</time>
-              <span className={`status-badge ${row.status.toLowerCase()}`} data-testid={`admin-dashboard-activity-status-badge-${testIdSlug(`${row.type}-${row.user}`)}`}>{row.status}</span>
+        <div className="table-wrap professional-table" data-testid="admin-dashboard-activity-log-list">
+          <table data-testid="admin-dashboard-recent-activity-table">
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>Target / Subject</th>
+                <th>Performed By</th>
+                <th>Timestamp</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activityRows.map((row, index) => (
+                <tr
+                  key={row.id || `${row.type}-${index}`}
+                  data-testid={`admin-dashboard-activity-row-${testIdSlug(`${row.type}-${row.user}-${row.dateTime}`)}`}
+                >
+                  <td>
+                    <strong>{row.type}</strong>
+                  </td>
+                  <td>{row.user}</td>
+                  <td>{row.performedBy}</td>
+                  <td>{row.dateTime}</td>
+                  <td>
+                    <span
+                      className={`status-badge ${row.status.toLowerCase()}`}
+                      data-testid={`admin-dashboard-activity-status-badge-${testIdSlug(`${row.type}-${row.user}`)}`}
+                    >
+                      {row.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!activityRows.length && (
+            <div className="practice-message empty" data-testid="admin-dashboard-no-recent-activity">
+              No recent activity recorded in this session yet. Sign in, create or edit users, or export tables to populate this table.
             </div>
-          ))}
+          )}
         </div>
       </section>
-      <section id="system-logs-section" className="card dashboard-section" data-testid="admin-dashboard-system-logs-section">
-        <SectionTitle icon="🧾" title="System Logs" subtitle="Detailed runtime events generated by authentication, user management, exports, and practice actions." />
+
+      <section
+        id="system-logs-section"
+        className="card dashboard-section"
+        data-testid="admin-dashboard-system-logs-section"
+      >
+        <SectionTitle
+          icon="🧾"
+          title="System Logs"
+          subtitle="Runtime audit events generated by authentication, user management, and data exports."
+        />
         <div className="table-wrap professional-table">
           <table data-testid="admin-dashboard-system-logs-table">
-            <thead><tr><th>Level</th><th>Source</th><th>Event</th><th>Details</th><th>Timestamp</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Level</th>
+                <th>Source</th>
+                <th>Event</th>
+                <th>Details</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
             <tbody>
-              {systemLogs.map((log: any) => (
+              {systemLogs.map((log) => (
                 <tr key={log.id} data-testid={`system-log-row-${testIdSlug(log.id)}`}>
-                  <td><span className={`status-badge ${String(log.level).toLowerCase()}`}>{log.level}</span></td>
+                  <td>
+                    <span className={`status-badge ${String(log.level).toLowerCase()}`}>{log.level}</span>
+                  </td>
                   <td>{log.source}</td>
                   <td>{log.event}</td>
                   <td className="wide-cell">{log.details}</td>
@@ -465,55 +510,85 @@ export default function AdminHomePage() {
               ))}
             </tbody>
           </table>
-          {!systemLogs.length && <div className="practice-message empty" data-testid="admin-dashboard-no-system-logs">No system logs captured yet. Perform login or user management actions to generate logs.</div>}
+          {!systemLogs.length && (
+            <div className="practice-message empty" data-testid="admin-dashboard-no-system-logs">
+              No system logs captured in this session yet. Perform login, user edits, or export actions to generate logs.
+            </div>
+          )}
         </div>
       </section>
 
-      <section id="login-attempts-section" className="card dashboard-section" data-testid="admin-dashboard-login-attempts-section">
-        <SectionTitle icon="🔐" title="Login Attempts" subtitle="Recent authentication attempts captured from the login flow." />
+      <section
+        id="login-attempts-section"
+        className="card dashboard-section"
+        data-testid="admin-dashboard-login-attempts-section"
+      >
+        <SectionTitle
+          icon="🔐"
+          title="Login Attempts"
+          subtitle="Authentication attempts recorded from the login flow during this session."
+        />
         <div className="table-wrap professional-table">
           <table data-testid="admin-dashboard-login-attempts-table">
-            <thead><tr><th>Username</th><th>Full Name</th><th>Login Status</th><th>Timestamp</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Full Name</th>
+                <th>Login Status</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
             <tbody>
-              {loginAttempts.map((attempt: any) => (
+              {loginAttempts.map((attempt) => (
                 <tr key={attempt.id} data-testid={`login-attempt-row-${testIdSlug(attempt.id)}`}>
                   <td>{attempt.username}</td>
                   <td>{attempt.fullName}</td>
-                  <td><span className={`status-badge ${String(attempt.loginStatus).toLowerCase()}`}>{attempt.loginStatus}</span></td>
+                  <td>
+                    <span className={`status-badge ${String(attempt.loginStatus).toLowerCase()}`}>
+                      {attempt.loginStatus}
+                    </span>
+                  </td>
                   <td>{attempt.timestamp}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {!loginAttempts.length && <div className="practice-message empty" data-testid="admin-dashboard-no-login-attempts">No login attempts captured in this session yet.</div>}
+          {!loginAttempts.length && (
+            <div className="practice-message empty" data-testid="admin-dashboard-no-login-attempts">
+              No login attempts captured in this session yet.
+            </div>
+          )}
         </div>
       </section>
 
-      <DashboardModal
-  modal={modal}
-  setModal={setModal}
-  loggedInProfile={loggedInProfile}
-/>
+      <DashboardModal modal={modal} setModal={setModal} loggedInProfile={loggedInProfile} />
 
-{showScrollTop && (
-  <button
-    className="scroll-top-button"
-    data-testid="dashboard-scroll-top-button"
-    onClick={() => {
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-    }}
-  >
-    ↑
-  </button>
-)}
+      {showScrollTop && (
+        <button
+          className="scroll-top-button"
+          data-testid="dashboard-scroll-top-button"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        >
+          ↑
+        </button>
+      )}
     </section>
   );
 }
 
-function DashboardSummaryCard({ title, count, icon, tone, onView }: any) {
+function DashboardSummaryCard({
+  title,
+  count,
+  icon,
+  tone,
+  onView,
+}: {
+  title: string;
+  count: number;
+  icon: string;
+  tone: string;
+  onView: () => void;
+}) {
   return (
     <article className={`dashboard-summary-card ${tone}`} data-testid={`admin-dashboard-${testIdSlug(title)}-card`}>
       <span className="status-dot" />
@@ -522,7 +597,9 @@ function DashboardSummaryCard({ title, count, icon, tone, onView }: any) {
         <h2>{count}</h2>
       </div>
       <span className="summary-icon">{icon}</span>
-      <button data-testid={`admin-dashboard-${testIdSlug(title)}-view-button`} onClick={onView}>View</button>
+      <button type="button" data-testid={`admin-dashboard-${testIdSlug(title)}-view-button`} onClick={onView}>
+        View
+      </button>
     </article>
   );
 }
@@ -539,7 +616,15 @@ function SectionTitle({ icon, title, subtitle }: { icon: string; title: string; 
   );
 }
 
-function AnalyticsCard({ title, testId, children }: any) {
+function AnalyticsCard({
+  title,
+  testId,
+  children,
+}: {
+  title: string;
+  testId: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="card analytics-card" data-testid={testId}>
       <h2>{title}</h2>
@@ -548,108 +633,109 @@ function AnalyticsCard({ title, testId, children }: any) {
   );
 }
 
-function ProgressRow({ label, value, total, tone }: any) {
+function ProgressRow({
+  label,
+  value,
+  total,
+  tone,
+}: {
+  label: string;
+  value: number;
+  total: number;
+  tone: string;
+}) {
   const percent = safePercent(value, total);
   return (
     <div className="progress-row" data-testid={`dashboard-widget-${label.toLowerCase().replaceAll(" ", "-")}`}>
-      <div className="between"><span>{label}</span><b>{percent}%</b></div>
-      <div className="progress-track"><span className={tone} style={{ width: `${percent}%` }} /></div>
-      <small>{value} of {total} users</small>
+      <div className="between">
+        <span>{label}</span>
+        <b>{percent}%</b>
+      </div>
+      <div className="progress-track">
+        <span className={tone} style={{ width: `${percent}%` }} />
+      </div>
+      <small>
+        {value} of {total} users
+      </small>
     </div>
   );
 }
 
-function MiniChart({ title, values, testId }: any) {
-  const max = Math.max(...values, 1);
-  return (
-    <section className="card mini-chart-card" data-testid={testId}>
-      <h3>{title}</h3>
-      <div className="mini-bars" data-testid={`chart-${testId}`}>
-        {values.map((value: number, index: number) => <span key={index} style={{ height: `${Math.max((value / max) * 100, 12)}%` }} />)}
-      </div>
-      <p className="muted">Last 7 data points</p>
-    </section>
-  );
-}
-
-function DonutWidget({ title, active, disabled, testId }: any) {
-  const total = active + disabled || 1;
-  const percent = safePercent(active, total);
-  return (
-    <section className="card donut-card" data-testid={testId}>
-      <h3>{title}</h3>
-      <div className="donut" style={{ background: `conic-gradient(#6046e8 ${percent}%, #fecaca 0)` }} data-testid={`chart-${testId}`}>
-        <span>{percent}%</span>
-      </div>
-      <p className="muted">Active users ratio</p>
-    </section>
-  );
-}
-
-function HealthWidget({ title, icon, value, detail, testId }: any) {
-  return (
-    <section className="card health-widget" data-testid={testId}>
-      <span>{icon}</span>
-      <div><h3>{title}</h3><strong>{value}</strong><p className="muted">{detail}</p></div>
-    </section>
-  );
-}
-
-function ListWidget({ title, items, empty = "No records", testId }: any) {
-  return (
-    <section className="card list-widget" data-testid={testId}>
-      <h3>{title}</h3>
-      {(items.length ? items : [empty]).map((item: string, index: number) => <p key={index}>• {item}</p>)}
-    </section>
-  );
-}
-
-function PracticeButton({ testId, label, onClick }: any) {
-  return <button className="practice-button" data-testid={testId} onClick={onClick}>{label}</button>;
-}
-
-function DashboardModal({ modal, setModal, loggedInProfile }: any) {
-  const [nestedOpen, setNestedOpen] = useState(false);
+function DashboardModal({
+  modal,
+  setModal,
+  loggedInProfile,
+}: {
+  modal: DashboardModalState;
+  setModal: (next: DashboardModalState) => void;
+  loggedInProfile: FormattedUserRow;
+}) {
   if (!modal.type) return null;
 
-  const close = () => {
-    setNestedOpen(false);
-    setModal({ type: null, title: "" });
-  };
+  const close = () => setModal({ type: null, title: "" });
 
   return (
     <div className="modal-backdrop" data-testid={`admin-dashboard-popup-modal-${modal.type}`}>
-      <div className="modal enterprise-modal" data-testid={modal.type === "superUserProfile" ? "super-user-popup" : "dashboard-popup-modal"}>
+      <div
+        className="modal enterprise-modal"
+        data-testid={modal.type === "superUserProfile" ? "super-user-popup" : "dashboard-popup-modal"}
+      >
         <div className="between">
           <h2>{modal.title}</h2>
-          <button className="modal-close" data-testid={modal.type === "superUserProfile" ? "super-user-close-button" : "admin-dashboard-popup-close-button"} onClick={close}>Close</button>
+          <button
+            type="button"
+            className="modal-close"
+            data-testid={
+              modal.type === "superUserProfile" ? "super-user-close-button" : "admin-dashboard-popup-close-button"
+            }
+            onClick={close}
+          >
+            Close
+          </button>
         </div>
 
         {modal.type === "superUserProfile" ? (
           <div className="super-user-details">
             <span className="protected-badge">{loggedInProfile.role}</span>
-            <DetailGrid rows={[
-              ["User ID", loggedInProfile.id], ["Name", loggedInProfile.name], ["Email", loggedInProfile.email], ["Role", loggedInProfile.role], ["Status", loggedInProfile.status], ["Last Login", loggedInProfile.lastLogin], ["Created Date", loggedInProfile.createdDate], ["Permissions", "Full audit, user governance, exports, dashboard monitoring"],
-            ]} />
+            <DetailGrid
+              rows={[
+                ["User ID", loggedInProfile.id],
+                ["Name", loggedInProfile.name],
+                ["Email", loggedInProfile.email],
+                ["Role", loggedInProfile.role],
+                ["Status", loggedInProfile.status],
+                ["Last Login", loggedInProfile.lastLogin],
+                ["Created Date", loggedInProfile.createdDate],
+                ["Permissions", "Full audit, user governance, exports, dashboard monitoring"],
+              ]}
+            />
             <p className="muted">This profile shows details for the currently logged-in user.</p>
           </div>
-        ) : modal.rows ? (
+        ) : (
           <div className="modal-table-wrap">
             <table data-testid="admin-dashboard-modal-user-list-table">
-              <thead><tr><th>User ID</th><th>Name</th><th>Email</th><th>Status</th><th>Role</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>User ID</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Status</th>
+                  <th>Role</th>
+                </tr>
+              </thead>
               <tbody>
-                {modal.rows.map((row: any, index: number) => (
-                  <tr key={row.id} data-testid={`admin-dashboard-modal-user-row-${testIdSlug(row.id)}`}><td>{row.id}</td><td>{row.name}</td><td>{row.email}</td><td>{row.status}</td><td>{row.role}</td></tr>
+                {(modal.rows || []).map((row) => (
+                  <tr key={row.id} data-testid={`admin-dashboard-modal-user-row-${testIdSlug(row.id)}`}>
+                    <td>{row.id}</td>
+                    <td>{row.name}</td>
+                    <td>{row.email}</td>
+                    <td>{row.status}</td>
+                    <td>{row.role}</td>
+                  </tr>
                 ))}
               </tbody>
             </table>
-            {!modal.rows.length && <p className="practice-message">No users found for this category.</p>}
-          </div>
-        ) : (
-          <div>
-            <p>{modal.details}</p>
-            {modal.type === "nested" && <button data-testid="admin-dashboard-open-child-modal-button" onClick={() => setNestedOpen(true)}>Open Child Modal</button>}
-            {nestedOpen && <div className="nested-modal" data-testid="admin-dashboard-practice-child-modal"><strong>Nested Modal Level 2</strong><p>Child modal content for nested modal automation testing.</p></div>}
+            {!(modal.rows || []).length && <p className="practice-message">No users found for this category.</p>}
           </div>
         )}
       </div>
@@ -657,6 +743,15 @@ function DashboardModal({ modal, setModal, loggedInProfile }: any) {
   );
 }
 
-function DetailGrid({ rows }: any) {
-  return <div className="detail-grid">{rows.map(([label, value]: string[]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>;
+function DetailGrid({ rows }: { rows: [string, string][] }) {
+  return (
+    <div className="detail-grid">
+      {rows.map(([label, value]) => (
+        <div key={label}>
+          <span>{label}</span>
+          <strong>{value}</strong>
+        </div>
+      ))}
+    </div>
+  );
 }

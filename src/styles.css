@@ -2701,3 +2701,203 @@ input.table-search-input,
   max-width: 100%;
   margin-top: 14px;
 }
+
+/* Admin Dashboard: Modern Slate Theme & Clean Grid Alignment */
+.dashboard-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 22px 0;
+}
+
+.enterprise-dashboard .modern-actions {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.enterprise-dashboard .action-card {
+  min-height: 76px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
+  box-shadow: none;
+}
+
+.enterprise-dashboard .action-card:hover {
+  border-color: #6366f1;
+  background: #eef2ff;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.12);
+}
+
+.enterprise-dashboard .analytics-card {
+  min-height: auto;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  box-shadow: none;
+}
+
+.enterprise-dashboard .wide-cell {
+  white-space: normal;
+  min-width: 220px;
+  max-width: 480px;
+  line-height: 1.45;
+}
+
+.enterprise-dashboard .practice-message.empty {
+  margin: 12px;
+  text-align: center;
+}
+
+.dark .enterprise-dashboard .dashboard-hero,
+.dark .enterprise-dashboard > .card,
+.dark .enterprise-dashboard .analytics-wrapper {
+  background: #0f172a !important;
+  border: 1px solid #1e293b !important;
+  color: #f1f5f9 !important;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.dark .enterprise-dashboard .dashboard-summary-card {
+  background: #0f172a !important;
+  border: 1px solid #1e293b !important;
+  color: #f1f5f9 !important;
+  border-radius: 16px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.3);
+}
+
+.dark .enterprise-dashboard .dashboard-summary-card:hover {
+  border-color: #334155 !important;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+}
+
+.dark .enterprise-dashboard .dashboard-summary-card p {
+  color: #94a3b8;
+}
+
+.dark .enterprise-dashboard .dashboard-summary-card h2 {
+  color: #f1f5f9;
+}
+
+.dark .enterprise-dashboard .dashboard-summary-card button {
+  background: #1e293b;
+  color: #a5b4fc;
+  border: 1px solid #334155;
+}
+
+.dark .enterprise-dashboard .dashboard-summary-card button:hover {
+  background: #6366f1;
+  color: #ffffff;
+  border-color: #6366f1;
+}
+
+.dark .enterprise-dashboard .summary-icon,
+.dark .enterprise-dashboard .section-title > span {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #f1f5f9;
+}
+
+.dark .enterprise-dashboard .action-card {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+.dark .enterprise-dashboard .action-card:hover {
+  border-color: #6366f1 !important;
+  background: rgba(99, 102, 241, 0.16) !important;
+}
+
+.dark .enterprise-dashboard .analytics-card {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+.dark .enterprise-dashboard .progress-row span,
+.dark .enterprise-dashboard .progress-row b {
+  color: #f1f5f9;
+}
+
+.dark .enterprise-dashboard .progress-row small {
+  color: #94a3b8;
+}
+
+.dark .enterprise-dashboard .progress-track {
+  background: #0f172a;
+  border: 1px solid #334155;
+}
+
+.dark .enterprise-dashboard .activity-toolbar button {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  border-radius: 10px;
+}
+
+.dark .enterprise-dashboard .activity-toolbar .filter-active {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: #ffffff;
+}
+
+.dark .enterprise-dashboard .professional-table {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+}
+
+.dark .enterprise-dashboard .professional-table table {
+  background: #0f172a;
+  color: #f1f5f9;
+}
+
+.dark .enterprise-dashboard .professional-table th {
+  background: #1e293b;
+  color: #f1f5f9;
+  border-bottom: 1px solid #334155;
+}
+
+.dark .enterprise-dashboard .professional-table td {
+  color: #e2e8f0;
+  border-bottom: 1px solid #1e293b;
+}
+
+.dark .enterprise-dashboard .practice-message {
+  background: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+.dark .enterprise-dashboard .modal-close {
+  background: #1e293b;
+  color: #f1f5f9;
+  border: 1px solid #334155;
+}
+
+.dark .enterprise-dashboard .protected-badge {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+}
+
+@media (max-width: 1180px) {
+  .enterprise-dashboard .modern-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .dashboard-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .enterprise-dashboard .modern-actions,
+  .dashboard-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}

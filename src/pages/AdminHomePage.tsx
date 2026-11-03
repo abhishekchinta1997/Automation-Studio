@@ -93,6 +93,17 @@ export default function AdminHomePage() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    if (!modal.type) return;
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setModal({ type: null, title: "" });
+      }
+    }
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [modal.type]);
+
   const counts = useMemo(() => {
     const superUsers = dashboardUsers.filter((u) => isSuperUser(u)).length;
     const adminUsers = dashboardUsers.filter((u) => !isSuperUser(u) && u.role === "Admin User").length;
@@ -414,22 +425,42 @@ export default function AdminHomePage() {
           subtitle="Real-time stream of user edits, logins, and table exports performed during this session."
         />
         <div className="activity-toolbar">
-          {(["today", "7days", "30days"] as const).map((filter) => (
-            <button
-              key={filter}
-              type="button"
-              className={activityFilter === filter ? "filter-active" : "filter-button"}
-              data-testid={`admin-dashboard-activity-filter-${filter}`}
-              onClick={() => setActivityFilter(filter)}
-            >
-              {filter === "today" ? "Today" : filter === "7days" ? "Last 7 Days" : "Last 30 Days"}
-            </button>
-          ))}
+          {(["today", "7days", "30days"] as const).map((filter) => {
+            const filterLabel = filter === "today" ? "Today" : filter === "7days" ? "Last 7 Days" : "Last 30 Days";
+            return (
+              <button
+                key={filter}
+                type="button"
+                className={activityFilter === filter ? "filter-active" : "filter-button"}
+                data-testid={`admin-dashboard-activity-filter-${filter}`}
+                onClick={() => {
+                  setActivityFilter(filter);
+                  showToast(`Activity filter applied: ${filterLabel}`, "info");
+                }}
+              >
+                {filterLabel}
+              </button>
+            );
+          })}
           <input
             data-testid="admin-dashboard-activity-search-input"
             placeholder="Search activity logs..."
             value={activitySearch}
             onChange={(event) => setActivitySearch(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                showToast(
+                  activitySearch.trim()
+                    ? `Filtered activity logs for "${activitySearch.trim()}"`
+                    : "Showing all activity logs",
+                  "info"
+                );
+              } else if (event.key === "Escape" && activitySearch) {
+                event.preventDefault();
+                setActivitySearch("");
+              }
+            }}
           />
         </div>
         <div className="table-wrap professional-table" data-testid="admin-dashboard-activity-log-list">
@@ -469,7 +500,28 @@ export default function AdminHomePage() {
           </table>
           {!activityRows.length && (
             <div className="practice-message empty" data-testid="admin-dashboard-no-recent-activity">
-              No recent activity recorded in this session yet. Sign in, create or edit users, or export tables to populate this table.
+              {activitySearch.trim() !== "" || (activity?.length ?? 0) > 0 ? (
+                <div className="empty-state-box">
+                  <div className="empty-state-title">No matching records found</div>
+                  <p className="muted" style={{ margin: "4px 0 12px" }}>
+                    No activity logs match your current search or date filter criteria.
+                  </p>
+                  <button
+                    type="button"
+                    className="empty-reset-btn"
+                    data-testid="admin-dashboard-activity-reset-filters-btn"
+                    onClick={() => {
+                      setActivitySearch("");
+                      setActivityFilter("30days");
+                      showToast("Activity filters reset", "info");
+                    }}
+                  >
+                    Reset Filters
+                  </button>
+                </div>
+              ) : (
+                "No recent activity recorded in this session yet. Sign in, create or edit users, or export tables to populate this table."
+              )}
             </div>
           )}
         </div>

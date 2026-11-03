@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
+import ErrorBoundary from "./components/ErrorBoundary";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import AdminHomePage from "./pages/AdminHomePage";
@@ -20,26 +21,28 @@ function RootRedirect() {
 }
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/" element={<RootRedirect />} />
-      <Route element={<ProtectedRoute />}>
-        <Route element={<Layout />}>
-          <Route path="/unauthorized" element={<UnauthorizedPage />} />
-          <Route element={<ProtectedRoute roles={["Admin User", "Super User"]} />}>
-            <Route path="/admin" element={<AdminHomePage />} />
-            <Route path="/admin/users" element={<AdminUserManagementPage />} />
-            <Route path="/admin/lab" element={<AutomationLabPage />} />
-            <Route path="/admin/tables" element={<DynamicTablesPage />} />
-          </Route>
-          <Route element={<ProtectedRoute roles={["Test User"]} />}>
-            <Route path="/test-user" element={<TestUserHomePage />} />
-            <Route path="/lab" element={<AutomationLabPage />} />
-            <Route path="/tables" element={<DynamicTablesPage />} />
+    <ErrorBoundary>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/" element={<RootRedirect />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<Layout />}>
+            <Route path="/unauthorized" element={<UnauthorizedPage />} />
+            <Route element={<ProtectedRoute roles={["Admin User", "Super User"]} />}>
+              <Route path="/admin" element={<AdminHomePage />} />
+              <Route path="/admin/users" element={<AdminUserManagementPage />} />
+              <Route path="/admin/lab" element={<AutomationLabPage />} />
+              <Route path="/admin/tables" element={<DynamicTablesPage />} />
+            </Route>
+            <Route element={<ProtectedRoute roles={["Test User"]} />}>
+              <Route path="/test-user" element={<TestUserHomePage />} />
+              <Route path="/lab" element={<AutomationLabPage />} />
+              <Route path="/tables" element={<DynamicTablesPage />} />
+            </Route>
           </Route>
         </Route>
-      </Route>
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </ErrorBoundary>
   );
 }

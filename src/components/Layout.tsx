@@ -2,13 +2,15 @@ import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import ThemeSelect from "./ThemeSelect";
-import { Home, Users, FlaskConical, Table, LogOut } from "lucide-react";
+import QaGuideModal from "./QaGuideModal";
+import { Home, Users, FlaskConical, Table, LogOut, BookOpen } from "lucide-react";
 
 export default function Layout() {
-  const { currentUser, logout, darkMode, toast } = useApp();
+  const { currentUser, logout, darkMode } = useApp();
   const navigate = useNavigate();
   const isAdmin = currentUser?.role === "Admin User" || currentUser?.role === "Super User";
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [qaGuideOpen, setQaGuideOpen] = useState(false);
 
   function handleLogout() {
     logout();
@@ -45,12 +47,6 @@ export default function Layout() {
 
   return (
     <div className="shell" data-testid="app-shell" style={{ display: "flex", minHeight: "100vh" }}>
-      {toast && (
-        <div className={`toast ${toast.type}`} data-testid="toast-message">
-          {toast.message}
-        </div>
-      )}
-
       <aside
         className={sidebarVisible ? "sidebar expanded" : "sidebar collapsed"}
         data-testid="sidebar"
@@ -156,6 +152,16 @@ export default function Layout() {
           </div>
 
           <div className="topbar-actions" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <button
+              type="button"
+              className="qa-guide-trigger-btn"
+              data-testid="qa-guide-open-btn"
+              onClick={() => setQaGuideOpen(true)}
+            >
+              <BookOpen size={16} />
+              <span>QA Guide</span>
+            </button>
+
             <ThemeSelect />
 
             <button
@@ -238,6 +244,8 @@ export default function Layout() {
           </div>
         </footer>
       </section>
+
+      <QaGuideModal open={qaGuideOpen} onClose={() => setQaGuideOpen(false)} />
     </div>
   );
 }

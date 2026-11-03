@@ -237,6 +237,30 @@ export default function DynamicTablesPage() {
     showToast(`Updated record ${id} successfully`, "success");
   }
 
+  function resetFilters() {
+    setSearchQuery("");
+    setAdvancedSearch("");
+    setSearchMode("partial");
+    setStatusFilter("All");
+    setShowActiveOnly(false);
+    setRecentlyCreated(false);
+    setNeverLoggedIn(false);
+    setLockedUsers(false);
+    setCurrentPage(1);
+    showToast("All table filters reset", "info");
+  }
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && editingId) {
+        cancelEdit();
+        showToast("Cancelled row edit", "info");
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [editingId]);
+
   function resetData() {
     setRecords(initialDynamicRecords);
     setSearchQuery("");
@@ -380,6 +404,7 @@ export default function DynamicTablesPage() {
                 setNeverLoggedIn(false);
                 setLockedUsers(false);
                 setCurrentPage(1);
+                showToast("Advanced filters cleared", "info");
               }}
               style={{
                 background: "transparent",
@@ -411,6 +436,7 @@ export default function DynamicTablesPage() {
                   onChange={() => {
                     setSearchMode("exact");
                     setCurrentPage(1);
+                    showToast("Search mode set to Exact Match", "info");
                   }}
                 />
                 Exact Match
@@ -425,6 +451,7 @@ export default function DynamicTablesPage() {
                   onChange={() => {
                     setSearchMode("partial");
                     setCurrentPage(1);
+                    showToast("Search mode set to Partial Match", "info");
                   }}
                 />
                 Partial Match
@@ -439,6 +466,7 @@ export default function DynamicTablesPage() {
                   onChange={() => {
                     setSearchMode("starts");
                     setCurrentPage(1);
+                    showToast("Search mode set to Starts With", "info");
                   }}
                 />
                 Starts With
@@ -455,6 +483,17 @@ export default function DynamicTablesPage() {
                 setAdvancedSearch(event.target.value);
                 setCurrentPage(1);
               }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  setCurrentPage(1);
+                  showToast(`Filtered records (${filteredRecords.length} match)`, "info");
+                } else if (event.key === "Escape" && advancedSearch) {
+                  event.preventDefault();
+                  setAdvancedSearch("");
+                  setCurrentPage(1);
+                }
+              }}
             />
           </div>
 
@@ -468,8 +507,10 @@ export default function DynamicTablesPage() {
                   type="checkbox"
                   checked={showActiveOnly}
                   onChange={(event) => {
-                    setShowActiveOnly(event.target.checked);
+                    const next = event.target.checked;
+                    setShowActiveOnly(next);
                     setCurrentPage(1);
+                    showToast(next ? "Filter applied: Show Active Only" : "Filter removed: Show Active Only", "info");
                   }}
                 />
                 Show Active Only
@@ -481,8 +522,10 @@ export default function DynamicTablesPage() {
                   type="checkbox"
                   checked={recentlyCreated}
                   onChange={(event) => {
-                    setRecentlyCreated(event.target.checked);
+                    const next = event.target.checked;
+                    setRecentlyCreated(next);
                     setCurrentPage(1);
+                    showToast(next ? "Filter applied: Recently Created" : "Filter removed: Recently Created", "info");
                   }}
                 />
                 Recently Created
@@ -494,8 +537,10 @@ export default function DynamicTablesPage() {
                   type="checkbox"
                   checked={neverLoggedIn}
                   onChange={(event) => {
-                    setNeverLoggedIn(event.target.checked);
+                    const next = event.target.checked;
+                    setNeverLoggedIn(next);
                     setCurrentPage(1);
+                    showToast(next ? "Filter applied: Never Logged In" : "Filter removed: Never Logged In", "info");
                   }}
                 />
                 Never Logged In
@@ -507,8 +552,10 @@ export default function DynamicTablesPage() {
                   type="checkbox"
                   checked={lockedUsers}
                   onChange={(event) => {
-                    setLockedUsers(event.target.checked);
+                    const next = event.target.checked;
+                    setLockedUsers(next);
                     setCurrentPage(1);
+                    showToast(next ? "Filter applied: Locked Users" : "Filter removed: Locked Users", "info");
                   }}
                 />
                 Locked Users
@@ -550,6 +597,17 @@ export default function DynamicTablesPage() {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  setCurrentPage(1);
+                  showToast(`Showing ${filteredRecords.length} matching record(s)`, "info");
+                } else if (e.key === "Escape" && searchQuery) {
+                  e.preventDefault();
+                  setSearchQuery("");
+                  setCurrentPage(1);
+                }
+              }}
             />
           </div>
 
@@ -560,6 +618,7 @@ export default function DynamicTablesPage() {
             onChange={(val) => {
               setStatusFilter(val);
               setCurrentPage(1);
+              showToast(`Filtered by status: ${val === "All" ? "All Statuses" : val}`, "info");
             }}
             triggerStyle={{ minWidth: "160px", borderRadius: "12px", padding: "10px 14px" }}
             options={[
@@ -646,7 +705,17 @@ export default function DynamicTablesPage() {
             {paginatedRecords.length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ textAlign: "center", padding: "40px", color: darkMode ? "#94a3b8" : "#64748b" }} data-testid="table-empty-state">
-                  No matching records found. Try adjusting your search query or filter.
+                  <div className="empty-state-box">
+                    <p>No matching records found. Try adjusting your search query or filters.</p>
+                    <button
+                      type="button"
+                      className="empty-reset-btn"
+                      data-testid="table-empty-reset-filters-btn"
+                      onClick={resetFilters}
+                    >
+                      <RotateCcw size={14} /> Reset Filters
+                    </button>
+                  </div>
                 </td>
               </tr>
             ) : (
@@ -665,12 +734,24 @@ export default function DynamicTablesPage() {
                             data-testid={`edit-input-name-${rec.id}`}
                             value={editForm.name}
                             onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                saveEdit(rec.id);
+                              }
+                            }}
                             style={{ padding: "6px 10px", borderRadius: "8px", fontSize: "13px" }}
                           />
                           <input
                             data-testid={`edit-input-email-${rec.id}`}
                             value={editForm.email}
                             onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                saveEdit(rec.id);
+                              }
+                            }}
                             style={{ padding: "6px 10px", borderRadius: "8px", fontSize: "13px" }}
                           />
                           {editError && (
@@ -697,6 +778,12 @@ export default function DynamicTablesPage() {
                           data-testid={`edit-input-role-${rec.id}`}
                           value={editForm.role}
                           onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              saveEdit(rec.id);
+                            }
+                          }}
                           style={{ padding: "6px 10px", borderRadius: "8px", fontSize: "13px" }}
                         />
                       ) : (

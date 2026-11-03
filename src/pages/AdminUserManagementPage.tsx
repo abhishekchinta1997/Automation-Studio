@@ -1,4 +1,5 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { RotateCcw } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { AppUser, Role, UserStatus } from "../types/user";
 import CustomSelect from "../components/CustomSelect";
@@ -543,6 +544,33 @@ function handleGenerateTestUsers() {
     return <span className="pill role-pill test-user" data-testid={`user-management-test-user-role-badge-${testIdSlug(user.id || "test-user")}`}>Test User</span>;
   }
 
+  function resetAllFilters() {
+    setSearch("");
+    setSearchMode("partial");
+    setShowActiveOnly(false);
+    setRecentlyCreated(false);
+    setNeverLoggedIn(false);
+    setLockedUsers(false);
+    setPage(1);
+    showToast("User filters reset", "info");
+  }
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        if (confirm) setConfirm(null);
+        else if (resetModalUser) {
+          setResetModalUser(null);
+          setNewPassword("");
+          setResetPasswordError("");
+        } else if (generateUserModal) setGenerateUserModal(false);
+        else if (modal) setModal(null);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [modal, resetModalUser, generateUserModal, confirm]);
+
   return (
     <section data-testid="user-management-page">
       <div className="between user-management-header">
@@ -566,6 +594,7 @@ function handleGenerateTestUsers() {
                   onChange={() => {
                     setSearchMode("exact");
                     setPage(1);
+                    showToast("Search mode set to Exact Match", "info");
                   }}
                 />
                 Exact Match
@@ -580,6 +609,7 @@ function handleGenerateTestUsers() {
                   onChange={() => {
                     setSearchMode("partial");
                     setPage(1);
+                    showToast("Search mode set to Partial Match", "info");
                   }}
                 />
                 Partial Match
@@ -594,6 +624,7 @@ function handleGenerateTestUsers() {
                   onChange={() => {
                     setSearchMode("starts");
                     setPage(1);
+                    showToast("Search mode set to Starts With", "info");
                   }}
                 />
                 Starts With
@@ -609,6 +640,17 @@ function handleGenerateTestUsers() {
                 setSearch(event.target.value);
                 setPage(1);
               }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  setPage(1);
+                  showToast(`Showing ${filtered.length} matching user(s)`, "info");
+                } else if (event.key === "Escape" && search) {
+                  event.preventDefault();
+                  setSearch("");
+                  setPage(1);
+                }
+              }}
             />
           </div>
 
@@ -622,8 +664,10 @@ function handleGenerateTestUsers() {
                   type="checkbox"
                   checked={showActiveOnly}
                   onChange={(event) => {
-                    setShowActiveOnly(event.target.checked);
+                    const next = event.target.checked;
+                    setShowActiveOnly(next);
                     setPage(1);
+                    showToast(next ? "Filter applied: Show Active Only" : "Filter removed: Show Active Only", "info");
                   }}
                 />
                 Show Active Only
@@ -635,8 +679,10 @@ function handleGenerateTestUsers() {
                   type="checkbox"
                   checked={recentlyCreated}
                   onChange={(event) => {
-                    setRecentlyCreated(event.target.checked);
+                    const next = event.target.checked;
+                    setRecentlyCreated(next);
                     setPage(1);
+                    showToast(next ? "Filter applied: Recently Created" : "Filter removed: Recently Created", "info");
                   }}
                 />
                 Recently Created
@@ -648,8 +694,10 @@ function handleGenerateTestUsers() {
                   type="checkbox"
                   checked={neverLoggedIn}
                   onChange={(event) => {
-                    setNeverLoggedIn(event.target.checked);
+                    const next = event.target.checked;
+                    setNeverLoggedIn(next);
                     setPage(1);
+                    showToast(next ? "Filter applied: Never Logged In" : "Filter removed: Never Logged In", "info");
                   }}
                 />
                 Never Logged In
@@ -661,8 +709,10 @@ function handleGenerateTestUsers() {
                   type="checkbox"
                   checked={lockedUsers}
                   onChange={(event) => {
-                    setLockedUsers(event.target.checked);
+                    const next = event.target.checked;
+                    setLockedUsers(next);
                     setPage(1);
+                    showToast(next ? "Filter applied: Locked Users" : "Filter removed: Locked Users", "info");
                   }}
                 />
                 Locked Users
@@ -826,7 +876,19 @@ function handleGenerateTestUsers() {
           <tbody>
             {pageUsers.length === 0 ? (
               <tr data-testid="user-management-empty-users-row">
-                <td colSpan={9}>No users found</td>
+                <td colSpan={9} style={{ textAlign: "center", padding: "36px" }}>
+                  <div className="empty-state-box">
+                    <p>No matching records found. Try adjusting your search mode or user filters.</p>
+                    <button
+                      type="button"
+                      className="empty-reset-btn"
+                      data-testid="user-management-empty-reset-filters-btn"
+                      onClick={resetAllFilters}
+                    >
+                      <RotateCcw size={14} /> Reset Filters
+                    </button>
+                  </div>
+                </td>
               </tr>
             ) : (
               pageUsers.map((user) => (

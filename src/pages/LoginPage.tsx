@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import ThemeSelect from "../components/ThemeSelect";
@@ -17,6 +17,19 @@ export default function LoginPage() {
   const [forgotPasswordModal, setForgotPasswordModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
+
+  useEffect(() => {
+    if (!forgotPasswordModal) return;
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setForgotPasswordModal(false);
+        setForgotSent(false);
+        setForgotEmail("");
+      }
+    }
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [forgotPasswordModal]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -496,6 +509,17 @@ export default function LoginPage() {
                   data-testid="forgot-password-email-input"
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (!forgotEmail) {
+                        showToast("Please enter an email", "error");
+                        return;
+                      }
+                      setForgotSent(true);
+                      showToast("Password reset link sent", "success");
+                    }
+                  }}
                   placeholder="Enter your email"
                   style={{
                     background: darkMode ? "rgba(15, 23, 42, 0.8)" : "#f8fafc",

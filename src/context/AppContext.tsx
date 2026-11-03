@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, 
 import { AppUser, ActivityItem, UserStatus, LoginAttempt, SystemLog } from "../types/user";
 import { initialUsers, initialActivity } from "../data/mockUsers";
 import { createRandomUser } from "../utils/randomUser";
+import ToastContainer from "../components/ToastContainer";
 
 type Toast = { message: string; type: "success" | "error" | "info" | "warning" } | null;
 export type ThemePreference = "light" | "dark" | "system";
@@ -39,6 +40,7 @@ interface AppContextType {
   toggleDarkMode: () => void;
   setTheme: (preference: ThemePreference) => void;
   showToast: (message: string, type?: "success" | "error" | "info" | "warning") => void;
+  dismissToast: () => void;
   createUser: (user: Omit<AppUser, "id" | "createdDate" | "lastLogin">) => string | null;
   updateUser: (id: string, changes: Partial<AppUser>) => void;
   deleteUsers: (ids: string[]) => void;
@@ -227,7 +229,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   function showToast(message: string, type: "success" | "error" | "info" | "warning" = "success") {
     window.clearTimeout(toastTimer.current);
     setToast({ message, type });
-    toastTimer.current = window.setTimeout(() => setToast(null), 2500);
+    toastTimer.current = window.setTimeout(() => setToast(null), 2800);
+  }
+
+  function dismissToast() {
+    window.clearTimeout(toastTimer.current);
+    setToast(null);
   }
 
   async function login(email: string, password: string) {
@@ -427,6 +434,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toggleDarkMode,
     setTheme,
     showToast,
+    dismissToast,
     createUser,
     updateUser,
     deleteUsers,
@@ -437,7 +445,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     recordAuditEvent,
   }), [currentUser, users, activity, loginAttempts, systemLogs, darkMode, themePreference, toast]);
 
-  return <AppContext.Provider value={value}><div className={darkMode ? "dark" : ""}>{children}</div></AppContext.Provider>;
+  return (
+    <AppContext.Provider value={value}>
+      <div className={darkMode ? "dark" : ""}>
+        {children}
+        <ToastContainer />
+      </div>
+    </AppContext.Provider>
+  );
 }
 
 export function useApp() {

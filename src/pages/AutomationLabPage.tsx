@@ -1,4 +1,4 @@
-import { useState, useRef, ChangeEvent } from "react";
+import { useState, useRef, useEffect, ChangeEvent } from "react";
 import { Check } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import CustomSelect from "../components/CustomSelect";
@@ -93,6 +93,26 @@ export default function AutomationLabPage() {
   const [shadowDomClicked, setShadowDomClicked] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!modalOpen && !sentMessageModal && !countryOpen) return;
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        if (modalOpen) {
+          setModalOpen(false);
+          logAction("Close Modal", "Practice modal closed via Escape key.", "info");
+        }
+        if (sentMessageModal) {
+          setSentMessageModal(null);
+        }
+        if (countryOpen) {
+          setCountryOpen(false);
+        }
+      }
+    }
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [modalOpen, sentMessageModal, countryOpen]);
 
   function logAction(title: string, message: string, type: "success" | "error" | "info" | "warning", meta?: Record<string, any>) {
     const time = new Date().toLocaleTimeString();
@@ -511,6 +531,20 @@ export default function AutomationLabPage() {
                     placeholder="Type message to send..."
                     value={textInput}
                     onChange={(e) => setTextInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (!textInput.trim()) {
+                          showToast("Please enter some text first", "warning");
+                          return;
+                        }
+                        setSentMessageModal(textInput);
+                        logAction("Send Message", `Successfully sent message: "${textInput}"`, "success", { text: textInput });
+                      } else if (e.key === "Escape" && textInput) {
+                        e.preventDefault();
+                        setTextInput("");
+                      }
+                    }}
                   />
                   <button
                     type="button"
@@ -558,6 +592,20 @@ export default function AutomationLabPage() {
                   placeholder="Filter table rows across all columns..."
                   value={tableSearch}
                   onChange={(e) => setTableSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      showToast(
+                        tableSearch.trim()
+                          ? `Filtered practice table for "${tableSearch.trim()}"`
+                          : "Showing all practice table rows",
+                        "info"
+                      );
+                    } else if (e.key === "Escape" && tableSearch) {
+                      e.preventDefault();
+                      setTableSearch("");
+                    }
+                  }}
                 />
               </div>
 
@@ -636,7 +684,26 @@ export default function AutomationLabPage() {
                   <tbody>
                     {filteredTableRows.length === 0 ? (
                       <tr data-testid="lab-table-empty-row">
-                        <td colSpan={6} style={{ textAlign: "center", color: "#667085" }}>No matching records found</td>
+                        <td colSpan={6} style={{ textAlign: "center", padding: "28px 16px" }}>
+                          <div className="empty-state-box">
+                            <div className="empty-state-title">No matching records found</div>
+                            <p className="muted" style={{ margin: "4px 0 12px" }}>
+                              No table rows match your search filter "{tableSearch}".
+                            </p>
+                            <button
+                              type="button"
+                              className="empty-reset-btn"
+                              data-testid="lab-table-empty-reset-filters-btn"
+                              onClick={() => {
+                                setTableSearch("");
+                                showToast("Table filters reset", "info");
+                                logAction("Reset Table Filter", "Cleared table search filter.", "info");
+                              }}
+                            >
+                              Reset Filters
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ) : (
                       filteredTableRows.map((row) => (

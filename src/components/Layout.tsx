@@ -51,7 +51,21 @@ export default function Layout() {
         </div>
       )}
 
-      <aside className={sidebarVisible ? "sidebar expanded" : "sidebar collapsed"} data-testid="sidebar" style={{ display: "flex", flexDirection: "column" }}>
+      <aside
+        className={sidebarVisible ? "sidebar expanded" : "sidebar collapsed"}
+        data-testid="sidebar"
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          height: "100vh",
+          width: sidebarVisible ? "256px" : "72px",
+          overflowY: "auto",
+          zIndex: 30,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
         {/* Toggle Button at top of sidebar */}
         <button
           className="sidebar-toggle-btn-modern"
@@ -112,7 +126,18 @@ export default function Layout() {
         ))}
       </aside>
 
-      <section className="main-area" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+      <section
+        className={sidebarVisible ? "main-area" : "main-area sidebar-collapsed"}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          marginLeft: sidebarVisible ? "256px" : "72px",
+          transition: "margin-left 0.2s ease",
+          display: "flex",
+          flexDirection: "column",
+          minHeight: "100vh",
+        }}
+      >
         <header className="topbar" data-testid="top-navbar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: darkMode ? "1px solid #334155" : "1px solid #e2e8f0" }}>
           <div style={{ display: "flex", alignItems: "center" }}>
             <Link
@@ -162,17 +187,55 @@ export default function Layout() {
           <Outlet />
         </main>
 
-        <footer className="app-footer" style={{ borderTop: darkMode ? "1px solid #334155" : "1px solid #e2e8f0", padding: "16px 24px", textAlign: "center", fontSize: "13px", color: darkMode ? "#94a3b8" : "#64748b", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", background: darkMode ? "#1e293b" : "#ffffff" }}>
+        <footer
+          className="app-footer"
+          data-testid="app-footer"
+          style={{
+            borderTop: darkMode ? "1px solid #1e293b" : "1px solid #e2e8f0",
+            padding: "16px 24px",
+            textAlign: "center",
+            fontSize: "13px",
+            color: darkMode ? "#94a3b8" : "#64748b",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexWrap: "wrap",
+            gap: "16px",
+            background: darkMode ? "#0f172a" : "#ffffff",
+          }}
+        >
           <span>© 2026 Automation Studio · Developed by Abhishek Chinta</span>
-          <a
-            href="https://github.com/abhishekchinta1997/"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "inherit", display: "flex", alignItems: "center", transition: "color 0.2s" }}
-            title="GitHub Profile"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"></path><path d="M9 18c-4.51 2-5-2-7-2"></path></svg>
-          </a>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "14px" }}>
+            <a
+              href="https://github.com/abhishekchinta1997/Automation-Studio"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="footer-profile-link"
+              data-testid="footer-github-link"
+              title="GitHub Repository"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+                <path d="M9 18c-4.51 2-5-2-7-2" />
+              </svg>
+              <span>GitHub</span>
+            </a>
+            <a
+              href="https://www.linkedin.com/in/abhishekchinta1997/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="footer-profile-link"
+              data-testid="footer-linkedin-link"
+              title="LinkedIn Profile"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+                <rect width="4" height="12" x="2" y="9" />
+                <circle cx="4" cy="4" r="2" />
+              </svg>
+              <span>LinkedIn</span>
+            </a>
+          </div>
         </footer>
       </section>
     </div>

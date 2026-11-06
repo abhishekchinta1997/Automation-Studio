@@ -3,7 +3,8 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import ThemeSelect from "./ThemeSelect";
 import QaGuideModal from "./QaGuideModal";
-import { Home, Users, FlaskConical, Table, LogOut, BookOpen } from "lucide-react";
+import FeedbackModal from "./FeedbackModal";
+import { Home, Users, FlaskConical, Table, LogOut, BookOpen, MessageSquare } from "lucide-react";
 
 export default function Layout() {
   const { currentUser, logout, darkMode } = useApp();
@@ -11,6 +12,7 @@ export default function Layout() {
   const isAdmin = currentUser?.role === "Admin User" || currentUser?.role === "Super User";
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [qaGuideOpen, setQaGuideOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   function handleLogout() {
     logout();
@@ -162,6 +164,17 @@ export default function Layout() {
               <span>QA Guide</span>
             </button>
 
+            <button
+              type="button"
+              className="feedback-trigger-btn"
+              data-testid="feedback-open-btn"
+              onClick={() => setFeedbackOpen(true)}
+              title="Share your suggestions and feedback"
+            >
+              <MessageSquare size={16} />
+              <span>Feedback</span>
+            </button>
+
             <ThemeSelect />
 
             <button
@@ -246,6 +259,7 @@ export default function Layout() {
       </section>
 
       <QaGuideModal open={qaGuideOpen} onClose={() => setQaGuideOpen(false)} />
+      <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </div>
   );
 }

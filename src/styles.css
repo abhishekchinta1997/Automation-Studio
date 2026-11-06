@@ -3377,3 +3377,198 @@ input.table-search-input,
   cursor: pointer;
 }
 
+/* ==========================================================================
+   Suggestion Box / Feedback Modal Styles
+   ========================================================================== */
+.feedback-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.feedback-trigger-btn:hover {
+  border-color: #6366f1;
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.dark .feedback-trigger-btn {
+  background: #0f172a;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+.dark .feedback-trigger-btn:hover {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.18);
+  color: #a5b4fc;
+}
+
+.feedback-modal-backdrop {
+  background: rgba(15, 23, 42, 0.65) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  z-index: 50;
+}
+
+.feedback-modal {
+  width: min(860px, 95vw) !important;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 24px !important;
+  border-radius: 20px !important;
+  background: #ffffff;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.dark .feedback-modal {
+  background: #0f172a !important;
+  border: 1px solid #1e293b !important;
+  color: #f1f5f9 !important;
+  box-shadow: 0 25px 65px rgba(0, 0, 0, 0.6);
+}
+
+.feedback-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dark .feedback-modal-header {
+  border-bottom-color: #1e293b;
+}
+
+.feedback-modal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.feedback-modal-badge-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(99, 102, 241, 0.14);
+  color: #6366f1;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  flex-shrink: 0;
+}
+
+.feedback-modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.feedback-open-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.feedback-open-tab-btn:hover {
+  background: #eef2ff;
+  border-color: #6366f1;
+  color: #4f46e5;
+}
+
+.dark .feedback-open-tab-btn {
+  background: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+.dark .feedback-open-tab-btn:hover {
+  background: #334155;
+  border-color: #6366f1;
+  color: #ffffff;
+}
+
+.feedback-modal-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #f1f5f9;
+  color: #475569;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.feedback-modal-close-btn:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.dark .feedback-modal-close-btn {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #e2e8f0;
+}
+
+.dark .feedback-modal-close-btn:hover {
+  background: #334155;
+  border-color: #475569;
+  color: #ffffff;
+}
+
+.feedback-iframe-wrapper {
+  margin-top: 14px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  flex: 1;
+  display: flex;
+}
+
+.dark .feedback-iframe-wrapper {
+  background: #1e293b;
+  border-color: #1e293b;
+}
+
+.feedback-google-form-iframe {
+  display: block;
+  width: 100%;
+  height: 600px;
+  max-height: calc(85vh - 120px);
+  border: none;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+

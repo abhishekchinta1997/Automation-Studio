@@ -73,3 +73,19 @@ Follow these steps to run Automation Studio locally:
    ```bash
    git clone [https://github.com/abhishekchinta1997/Automation-Studio.git](https://github.com/abhishekchinta1997/Automation-Studio.git)
    cd Automation-Studio
+
+---
+
+### Community & License
+
+```markdown
+---
+
+## 🤝 Feedback & Contributions
+- Found a bug or want a new automation scenario added? Use the in-app **Suggestion Box** or open an issue on GitHub.
+- If Automation Studio helps your testing practice, drop a ⭐ on the repo!
+
+---
+
+## 📄 License
+This project is open-source and available under the [MIT License](LICENSE).

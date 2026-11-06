@@ -173,9 +173,9 @@ export default function QaGuideModal({ open, onClose }: QaGuideModalProps) {
         aria-labelledby="qa-guide-title"
       >
         <div className="qa-guide-header">
-          <div className="qa-guide-title-group">
-            <span className="qa-guide-badge">
-              <BookOpen size={18} />
+          <div className="qa-guide-title-row">
+            <span className="qa-guide-badge-icon">
+              <BookOpen size={20} />
             </span>
             <div>
               <h2 id="qa-guide-title">QA Test Guide &amp; Locators</h2>
@@ -186,7 +186,7 @@ export default function QaGuideModal({ open, onClose }: QaGuideModalProps) {
           </div>
           <button
             type="button"
-            className="modal-close"
+            className="modal-close qa-guide-close-btn"
             data-testid="qa-guide-close-btn"
             aria-label="Close QA Guide"
             onClick={onClose}

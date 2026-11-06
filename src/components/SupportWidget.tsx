@@ -1,16 +1,16 @@
 import { useState, useEffect } from "react";
-import { Coffee, X, Copy, Check, Heart, QrCode, Sparkles, MessageSquare } from "lucide-react";
+import { Coffee, X, Copy, Check, Heart, QrCode, ExternalLink } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import FeedbackModal from "./FeedbackModal";
 
 const DEFAULT_UPI_ID = "abhishekchinta@ybl";
+const KOFI_LINK = "https://ko-fi.com/chinta_abhishek";
 
 export default function SupportWidget() {
   const { showToast } = useApp();
   const [modalOpen, setModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"india" | "global">("india");
   const [copiedUpi, setCopiedUpi] = useState(false);
-  const [localFeedbackOpen, setLocalFeedbackOpen] = useState(false);
+  const [selectedTier, setSelectedTier] = useState<string>("$5");
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -31,17 +31,6 @@ export default function SupportWidget() {
     setCopiedUpi(true);
     showToast(`Copied UPI ID: ${DEFAULT_UPI_ID}`, "success");
     window.setTimeout(() => setCopiedUpi(false), 2000);
-  }
-
-  function handleOpenFeedback() {
-    setModalOpen(false);
-    window.dispatchEvent(new CustomEvent("open-feedback-modal"));
-    const feedbackTrigger = document.querySelector<HTMLButtonElement>('[data-testid="feedback-open-btn"]');
-    if (feedbackTrigger) {
-      feedbackTrigger.click();
-    } else {
-      setLocalFeedbackOpen(true);
-    }
   }
 
   const supportTiers = [
@@ -219,64 +208,65 @@ export default function SupportWidget() {
               </div>
             )}
 
-            {/* Tab 2: Global (USD) Content - Coming Soon Interface */}
+            {/* Tab 2: Global (USD) Content - Active Ko-fi Support */}
             {activeTab === "global" && (
               <div className="support-tab-panel" data-testid="support-panel-global">
-                <div className="support-coming-soon-card" data-testid="support-coming-soon-card">
-                  {/* Sleek Badge */}
-                  <div className="support-coming-soon-badge-row">
-                    <span
-                      className="support-coming-soon-badge bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1.5"
-                      data-testid="support-coming-soon-badge"
-                    >
-                      <Sparkles size={12} className="text-amber-400" />
-                      Coming Soon
+                <div className="support-kofi-card" data-testid="support-kofi-card">
+                  {/* Header & Description */}
+                  <div className="support-kofi-header">
+                    <span className="support-kofi-icon-badge">
+                      <Coffee size={20} className="text-amber-400" />
                     </span>
+                    <div className="support-kofi-header-text">
+                      <h3 className="support-kofi-title" data-testid="support-kofi-title">
+                        Support via Ko-fi / Global Cards
+                      </h3>
+                      <p className="support-kofi-desc" data-testid="support-kofi-desc">
+                        Support the continuous development of Automation Studio from anywhere in the world. Accepts International Credit/Debit Cards, Apple Pay, Google Pay, and PayPal.
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Headline / Title */}
-                  <h3 className="support-coming-soon-title" data-testid="support-coming-soon-title">
-                    International Support is on the Way
-                  </h3>
+                  {/* Preset Visual Tier Cards */}
+                  <div className="support-tiers-grid">
+                    {supportTiers.map((tier) => {
+                      const isSelected = selectedTier === tier.amount;
+                      return (
+                        <div
+                          key={tier.amount}
+                          className={`support-tier-card ${isSelected ? "selected" : ""} ${tier.highlight ? "popular" : ""}`}
+                          data-testid={`support-tier-${tier.amount.replace("$", "")}`}
+                          onClick={() => setSelectedTier(tier.amount)}
+                        >
+                          {tier.highlight && <span className="support-popular-badge">Most Popular</span>}
+                          <div className="support-tier-icon">{tier.icon}</div>
+                          <div className="support-tier-amount">{tier.amount}</div>
+                          <div className="support-tier-label">{tier.label}</div>
+                          <p className="support-tier-desc">{tier.description}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
 
-                  {/* Description */}
-                  <p className="support-coming-soon-desc" data-testid="support-coming-soon-desc">
-                    International payment gateways (Credit Card, Debit Card &amp; PayPal) are currently being integrated for cross-border contributors. Stay tuned!
+                  {/* Main Action Button */}
+                  <div className="support-kofi-actions">
+                    <a
+                      href={KOFI_LINK}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="support-kofi-main-btn bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold py-2.5 px-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2.5 w-full"
+                      data-testid="support-kofi-main-btn"
+                    >
+                      <Coffee size={18} />
+                      <span>Support on Ko-fi (USD / Cards)</span>
+                      <ExternalLink size={16} />
+                    </a>
+                  </div>
+
+                  {/* Secondary Note at Bottom */}
+                  <p className="support-kofi-note" data-testid="support-kofi-note">
+                    Zero platform fees on tips. 100% directly supports hosting and open-source QA tooling.
                   </p>
-
-                  {/* Fallback Action Button */}
-                  <button
-                    type="button"
-                    className="support-feedback-fallback-btn"
-                    data-testid="support-feedback-fallback-btn"
-                    onClick={handleOpenFeedback}
-                  >
-                    <MessageSquare size={16} />
-                    <span>Have feedback or suggestions? Drop us a note</span>
-                  </button>
-                </div>
-
-                {/* Muted Preview Tier Cards */}
-                <div className="support-preview-section">
-                  <div className="support-preview-header">
-                    <span className="support-preview-label">Upcoming Support Tiers (Preview)</span>
-                  </div>
-                  <div className="support-tiers-grid support-tiers-muted">
-                    {supportTiers.map((tier) => (
-                      <div
-                        key={tier.amount}
-                        className={`support-tier-card muted-preview ${tier.highlight ? "popular" : ""}`}
-                        data-testid={`support-tier-preview-${tier.amount.replace("$", "")}`}
-                        aria-disabled="true"
-                      >
-                        {tier.highlight && <span className="support-popular-badge">Preview</span>}
-                        <div className="support-tier-icon">{tier.icon}</div>
-                        <div className="support-tier-amount">{tier.amount}</div>
-                        <div className="support-tier-label">{tier.label}</div>
-                        <p className="support-tier-desc">{tier.description}</p>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               </div>
             )}
@@ -291,9 +281,6 @@ export default function SupportWidget() {
           </div>
         </div>
       )}
-
-      {/* Fallback Suggestion Box Modal instance if triggered without Layout */}
-      <FeedbackModal open={localFeedbackOpen} onClose={() => setLocalFeedbackOpen(false)} />
     </>
   );
 }

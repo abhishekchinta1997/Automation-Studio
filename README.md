@@ -4,6 +4,14 @@
 
 ![Automation Studio Preview](https://img.shields.io/badge/Status-Active%20Development-success)  ![TypeScript](https://img.shields.io/badge/TypeScript-React%2018-blue)
 
+[![Live App](https://img.shields.io/badge/Live%20Demo-automation--studio.online-brightgreen?style=for-the-badge&logo=vercel)](https://automation-studio.online)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+
+---
+
+## 🌐 Live Application
+Access the production deployment here: **[https://automation-studio.online](https://automation-studio.online)**
+
 ---
 
 ## ✨ Key Features
@@ -28,6 +36,13 @@
 * **Dynamic Theme Engine:** True Black Dark Mode (`#000000`) with neutral dark cards (`#121212`) and high-contrast white text (`#F9FAFB`), alongside a clean Light Mode.
 * **Collapsible Sidebar:** Responsive sidebar toggle with collapsed icon-only view and hover tooltips.
 
+### 🧭 5. QA Guide & Locator Strategy
+- **Built-in Reference Guide:** Dedicated modal cheat sheet showing recommended locator patterns (XPath, CSS selectors, Playwright locators) for each lab scenario.
+- **Copy Snippets:** Instant copying of selector patterns directly into test scripts.
+
+### 💬 6. Feedback & Community Suggestion Box
+- **Integrated Suggestion Modal:** Direct in-app feedback loop powered by Google Forms to report locator issues, request new practice scenarios, or submit platform improvements.
+
 ---
 
 ## 🛠️ Tech Stack
@@ -37,7 +52,8 @@
 * **State Management:** React Context API with persistent session simulation
 * **Styling:** Custom CSS & Tailwind-inspired utility classes
 * **Icons:** Lucide React
-
+*  **Hosting & CI/CD:** Vercel (Continuous deployment from GitHub)
+*  **Analytics & Telemetry:** Google Analytics 4 (GA4) & Vercel Web Analytics
 ---
 
 ## 🤖 AI-Assisted Engineering
@@ -51,8 +67,9 @@
 
 ## 📦 Getting Started Locally
 
-Follow these steps to run Automation Studio locally on your machine:
+Follow these steps to run Automation Studio locally:
 
 1. **Clone the repository:**
    ```bash
    git clone [https://github.com/abhishekchinta1997/Automation-Studio.git](https://github.com/abhishekchinta1997/Automation-Studio.git)
+   cd Automation-Studio

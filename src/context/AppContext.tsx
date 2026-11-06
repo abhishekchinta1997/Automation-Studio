@@ -3,6 +3,7 @@ import { AppUser, ActivityItem, UserStatus, LoginAttempt, SystemLog } from "../t
 import { initialUsers, initialActivity } from "../data/mockUsers";
 import { createRandomUser } from "../utils/randomUser";
 import ToastContainer from "../components/ToastContainer";
+import SupportWidget from "../components/SupportWidget";
 
 type Toast = { message: string; type: "success" | "error" | "info" | "warning" } | null;
 export type ThemePreference = "light" | "dark" | "system";
@@ -450,6 +451,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       <div className={darkMode ? "dark" : ""}>
         {children}
         <ToastContainer />
+        <SupportWidget />
       </div>
     </AppContext.Provider>
   );

@@ -38,6 +38,7 @@ const LOCATOR_ENTRIES: LocatorEntry[] = [
   { module: "Navigation & Theme", element: "Theme Dropdown Trigger", testId: "theme-select", description: "Opens System / Light / Dark theme menu" },
   { module: "Navigation & Theme", element: "QA Guide Button", testId: "qa-guide-open-btn", description: "Opens the QA Test Guide & Locators modal" },
   { module: "Navigation & Theme", element: "Feedback / Suggestions Button", testId: "feedback-open-btn", description: "Opens the Suggestion Box & Feedback modal" },
+  { module: "Navigation & Theme", element: "Floating Support Button (FAB)", testId: "support-fab-btn", description: "Opens the Support / Coffee widget" },
   { module: "Navigation & Theme", element: "Logout Button", testId: "topbar-logout-button", description: "Ends current user session" },
   { module: "Navigation & Theme", element: "Toast Notification", testId: "toast-message", description: "Global bottom-right toast notification banner" },
 

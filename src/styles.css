@@ -2957,7 +2957,7 @@ input.table-search-input,
 .toast.toast-bottom-right {
   position: fixed;
   right: 24px;
-  bottom: 24px;
+  bottom: 84px; /* Positioned above the floating Support FAB (bottom: 24px) */
   top: auto;
   left: auto;
   transform: none;
@@ -3032,9 +3032,9 @@ input.table-search-input,
   background: rgba(255, 255, 255, 0.28);
 }
 
-/* Keep scroll-to-top button above bottom-right elements */
+/* Keep scroll-to-top button above bottom-right elements & toast */
 .scroll-top-button {
-  bottom: 84px !important;
+  bottom: 150px !important;
 }
 
 /* QA Guide Trigger Button & Modal */
@@ -3805,11 +3805,11 @@ input.table-search-input,
 }
 
 .support-qr-box {
-  width: 200px;
-  height: 200px;
+  width: 220px;
+  height: 220px;
   background: #ffffff;
-  border-radius: 14px;
-  padding: 8px;
+  border-radius: 16px;
+  padding: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4062,6 +4062,16 @@ input.table-search-input,
 
 /* Mobile responsive adjustments */
 @media (max-width: 640px) {
+  .toast.toast-bottom-right {
+    bottom: 74px;
+    right: 16px;
+    left: 16px;
+    min-width: unset;
+    max-width: calc(100vw - 32px);
+  }
+  .scroll-top-button {
+    bottom: 136px !important;
+  }
   .support-fab {
     bottom: 18px;
     right: 18px;

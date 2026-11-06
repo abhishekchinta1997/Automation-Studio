@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Coffee, X, Copy, Check, ExternalLink, Heart, CreditCard, QrCode, Sparkles } from "lucide-react";
 import { useApp } from "../context/AppContext";
 
-const DEFAULT_UPI_ID = "abhishekchinta@upi";
+const DEFAULT_UPI_ID = "abhishekchinta@ybl";
 const PAYPAL_LINK = "https://paypal.me/YOUR_HANDLE";
 const KOFI_LINK = "https://ko-fi.com/YOUR_HANDLE";
 

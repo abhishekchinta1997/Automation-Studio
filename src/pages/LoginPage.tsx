@@ -532,7 +532,18 @@ export default function LoginPage() {
           </aside>
 
           {forgotPasswordModal && (
-            <div className="modal-backdrop" data-testid="forgot-password-modal">
+            <div
+              className="modal-backdrop"
+              data-testid="forgot-password-modal"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setForgotPasswordModal(false);
+                  setForgotSent(false);
+                  setForgotEmail("");
+                  setForgotError("");
+                }
+              }}
+            >
               <div className="modal" style={{ background: darkMode ? "#1e293b" : "#ffffff", color: darkMode ? "#f8fafc" : "#0f172a" }}>
                 <h2>Reset Password</h2>
                 <p>Enter your account email to receive a password reset link.</p>

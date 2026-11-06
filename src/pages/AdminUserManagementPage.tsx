@@ -1097,7 +1097,13 @@ function handleGenerateTestUsers() {
       </div>
 
       {modal && (
-        <div className="modal-backdrop" data-testid={modal === "create" ? "create-user-modal" : "edit-user-modal"}>
+        <div
+          className="modal-backdrop"
+          data-testid={modal === "create" ? "create-user-modal" : "edit-user-modal"}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setModal(null);
+          }}
+        >
           <form className="modal" data-testid={modal === "create" ? "create-user-form" : "edit-user-form"} onSubmit={save}>
             <h2>{modal === "create" ? "Create User" : "Edit User"}</h2>
 
@@ -1204,10 +1210,17 @@ function handleGenerateTestUsers() {
       )}
 
       {resetModalUser && (
-  <div
-    className="modal-backdrop"
-    data-testid="reset-password-modal"
-  >
+        <div
+          className="modal-backdrop"
+          data-testid="reset-password-modal"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setResetModalUser(null);
+              setNewPassword("");
+              setResetPasswordError("");
+            }
+          }}
+        >
     <div className="modal">
       <h2>Reset Password</h2>
 
@@ -1279,11 +1292,14 @@ function handleGenerateTestUsers() {
   </div>
 )}
 
-{generateUserModal && (
-  <div
-    className="modal-backdrop"
-    data-testid="generate-user-type-modal"
-  >
+      {generateUserModal && (
+        <div
+          className="modal-backdrop"
+          data-testid="generate-user-type-modal"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setGenerateUserModal(false);
+          }}
+        >
     <div className="modal">
       <h2>Generate Random Users</h2>
 
@@ -1339,7 +1355,13 @@ function handleGenerateTestUsers() {
 )}
 
       {confirm && (
-        <div className="modal-backdrop" data-testid="delete-confirmation-modal">
+        <div
+          className="modal-backdrop"
+          data-testid="delete-confirmation-modal"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setConfirm(null);
+          }}
+        >
           <div className="modal">
             <h2>Confirm Action</h2>
             <p data-testid="delete-confirmation-message">{confirm.message}</p>

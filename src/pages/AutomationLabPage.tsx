@@ -1294,7 +1294,16 @@ export default function AutomationLabPage() {
       </div>
 
       {modalOpen && (
-        <div className="modal-backdrop" data-testid="lab-practice-modal-backdrop">
+        <div
+          className="modal-backdrop"
+          data-testid="lab-practice-modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setModalOpen(false);
+              logAction("Close Modal", "Practice modal closed.", "info");
+            }
+          }}
+        >
           <div className="modal" data-testid="lab-practice-modal">
             <h2>Automation Practice Modal</h2>
             <p>This modal is designed for Selenium, Playwright, and Cypress automation assertions and dismissal testing.</p>
@@ -1314,7 +1323,13 @@ export default function AutomationLabPage() {
       )}
 
       {sentMessageModal && (
-        <div className="modal-backdrop" data-testid="lab-sent-confirmation-modal-backdrop">
+        <div
+          className="modal-backdrop"
+          data-testid="lab-sent-confirmation-modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSentMessageModal(null);
+          }}
+        >
           <div className="modal" data-testid="lab-sent-confirmation-modal" style={{ textAlign: "center" }}>
             <div style={{ fontSize: "42px", marginBottom: "10px" }}></div>
             <h2>Message Sent Successfully!</h2>

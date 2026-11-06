@@ -727,7 +727,13 @@ function DashboardModal({
   const close = () => setModal({ type: null, title: "" });
 
   return (
-    <div className="modal-backdrop" data-testid={`admin-dashboard-popup-modal-${modal.type}`}>
+    <div
+      className="modal-backdrop"
+      data-testid={`admin-dashboard-popup-modal-${modal.type}`}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) close();
+      }}
+    >
       <div
         className="modal enterprise-modal"
         data-testid={modal.type === "superUserProfile" ? "super-user-popup" : "dashboard-popup-modal"}

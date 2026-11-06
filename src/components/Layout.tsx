@@ -234,7 +234,7 @@ export default function Layout() {
           <span>© 2026 Automation Studio · Developed by Abhishek Chinta</span>
           <div style={{ display: "inline-flex", alignItems: "center", gap: "14px" }}>
             <a
-              href="https://github.com/abhishekchinta1997/abhishekchinta1997"
+              href="https://github.com/abhishekchinta1997/"
               target="_blank"
               rel="noopener noreferrer"
               className="footer-profile-link"

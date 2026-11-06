@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import ThemeSelect from "./ThemeSelect";
@@ -13,6 +13,14 @@ export default function Layout() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [qaGuideOpen, setQaGuideOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+
+  useEffect(() => {
+    function handleOpenFeedback() {
+      setFeedbackOpen(true);
+    }
+    window.addEventListener("open-feedback-modal", handleOpenFeedback);
+    return () => window.removeEventListener("open-feedback-modal", handleOpenFeedback);
+  }, []);
 
   function handleLogout() {
     logout();

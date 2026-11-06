@@ -3980,6 +3980,112 @@ input.table-search-input,
   line-height: 1.35;
 }
 
+/* Global Tab Coming Soon & Feedback Fallback */
+.support-coming-soon-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 22px 20px;
+  gap: 12px;
+}
+
+.support-coming-soon-badge-row {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.support-coming-soon-badge {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+.support-coming-soon-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #f8fafc;
+  margin: 0;
+}
+
+.support-coming-soon-desc {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.5;
+  max-width: 440px;
+}
+
+.support-feedback-fallback-btn {
+  margin-top: 4px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 16px;
+  border-radius: 12px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.support-feedback-fallback-btn:hover {
+  background: #243049;
+  border-color: #6366f1;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.support-preview-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.support-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.support-preview-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.support-tier-card.muted-preview {
+  opacity: 0.6;
+  cursor: default;
+  border: 1px dashed #334155;
+  background: rgba(30, 41, 59, 0.55);
+  pointer-events: none;
+  filter: grayscale(0.2);
+}
+
+.support-tier-card.muted-preview:hover {
+  transform: none;
+  border-color: #334155;
+  background: rgba(30, 41, 59, 0.55);
+}
+
 .support-global-actions {
   display: flex;
   flex-direction: column;

@@ -179,7 +179,12 @@ export default function Layout() {
           data-testid="app-footer"
         >
           <div className="footer-inner">
-            <span className="footer-copy">© 2026 Automation Studio · Built by Abhishek Chinta</span>
+            <div className="footer-copy-group">
+              <span className="footer-copy">© 2026 Automation Studio · Built by Abhishek Chinta</span>
+              <span className="footer-badge" title="Developed with OmniRoute (Claude Code) & Antigravity">
+                Developed with OmniRoute (Claude Code) & Antigravity
+              </span>
+            </div>
             <div className="footer-links-row">
               <a
                 href="https://github.com/abhishekchinta1997/"

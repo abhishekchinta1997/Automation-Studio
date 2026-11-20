@@ -41,7 +41,7 @@ const LOCATOR_ENTRIES: LocatorEntry[] = [
   { module: "Navigation & Theme", element: "Feedback / Suggestions Button", testId: "feedback-open-btn", description: "Opens the Suggestion Box & Feedback modal" },
   { module: "Navigation & Theme", element: "Floating Support Button (FAB)", testId: "support-fab-btn", description: "Opens the Support / Coffee widget" },
   { module: "Navigation & Theme", element: "Logout Button", testId: "topbar-logout-button", description: "Ends current user session" },
-  { module: "Navigation & Theme", element: "Toast Notification", testId: "toast-message", description: "Global bottom-right toast notification banner" },
+  { module: "Navigation & Theme", element: "Toast Notification", testId: "toast-message", description: "Global top-right toast notification banner" },
 
   // Admin Dashboard
   { module: "Admin Dashboard", element: "Export CSV Action", testId: "admin-dashboard-export-csv-button", description: "Downloads user table as CSV" },

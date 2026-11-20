@@ -15,7 +15,7 @@ export default function ToastContainer() {
 
   return (
     <div
-      className={`toast toast-bottom-right ${toast.type}`}
+      className={`toast toast-top-right toast-bottom-right ${toast.type}`}
       data-testid="toast-message"
       role="status"
       aria-live="polite"

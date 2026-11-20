@@ -1,4 +1,4 @@
-﻿# 🚀 Automation Studio
+# 🚀 Automation Studio
 
 **Automation Studio** is a professional, enterprise-grade Practice Web Application and QA Sandbox engineered specifically for practicing and mastering web test automation using industry-leading frameworks like **Playwright**, **Selenium**, and **Cypress**.
 
@@ -61,7 +61,7 @@ Access the production deployment here: **[https://automation-studio.online](http
 **Automation Studio** was conceptualized, architected, and driven by **Abhishek Chinta**, built entirely through AI-assisted development workflows:
 
 * **Concept & Product Direction:** Abhishek Chinta
-* **Development & Refinement:** Built using ChatGPT, OmniRoute (powered by Claude Code), and Google Gemini.
+* **Development & Refinement:** Built using ChatGPT, OmniRoute (powered by Claude Code), and Google Antigravity.
 
 ---
 

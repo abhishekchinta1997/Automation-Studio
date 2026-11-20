@@ -4,6 +4,7 @@ import { Table, Search, Download, Edit2, Save, X, ChevronUp, ChevronDown, CheckC
 import { DynamicRecord, DynamicRecordStatus, TableSearchMode, TableSortKey, TableSortDirection } from "../types/table";
 import { initialDynamicRecords } from "../data/dynamicRecords";
 import { recordsToCSV, downloadFile, compareDynamicRecords } from "../utils/tableExport";
+import { isNeverLoggedIn, matchesBySearchMode } from "../utils/userHelpers";
 import CustomSelect from "../components/CustomSelect";
 
 const RECORDS_STORAGE_KEY = "automation-dynamic-records";
@@ -66,21 +67,8 @@ function getJoinTime(rec: DynamicRecord): number {
   return new Date(rec.joinDate).getTime() || 0;
 }
 
-function isNeverLoggedIn(rec: DynamicRecord): boolean {
-  const val = String(rec.lastLogin ?? "").trim().toLowerCase();
-  return !val || val === "never" || val === "n/a" || val === "not logged in";
-}
-
-function matchesBySearchMode(values: string[], query: string, mode: TableSearchMode): boolean {
-  if (!query) return true;
-  const lowered = values.map((v) => v.toLowerCase());
-  if (mode === "exact") return lowered.some((v) => v === query);
-  if (mode === "starts") return lowered.some((v) => v.startsWith(query));
-  return lowered.some((v) => v.includes(query));
-}
-
 export default function DynamicTablesPage() {
-  const { showToast, darkMode, recordAuditEvent } = useApp();
+  const { showToast, darkMode, recordAuditEvent, specMode } = useApp();
 
   const [records, setRecords] = useState<DynamicRecord[]>(loadRecords);
   const [searchQuery, setSearchQuery] = useState("");
@@ -315,15 +303,18 @@ export default function DynamicTablesPage() {
       <div className="between dynamic-tables-header">
         <div>
           <h1 className="dynamic-tables-title">
-            <Table size={28} color="#6366f1" /> Dynamic Web Tables
+            <Table size={26} color="var(--accent)" /> Dynamic Web Tables
           </h1>
           <p className="muted dynamic-tables-subtitle">
-            Advanced data grid with instant search, multi-column sorting, pagination, inline editing, and robust test locators.
+            {specMode
+              ? "RAW SPEC: [data-testid=\"dynamic-web-table\"] · Multi-col sort · Row selection · In-place inline edit · CSV/JSON export"
+              : "Data grid testbed for sorting, multi-criteria filtering, pagination, inline row editing, and data extraction."}
           </p>
         </div>
 
         <div className="actions" style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           <button
+            className="secondary-btn"
             data-testid="reset-table-data-btn"
             onClick={resetData}
             title="Restore the original sample records"
@@ -331,16 +322,13 @@ export default function DynamicTablesPage() {
               display: "flex",
               alignItems: "center",
               gap: "8px",
-              background: "transparent",
-              color: darkMode ? "#94a3b8" : "#64748b",
               fontWeight: 600,
-              padding: "10px 16px",
-              borderRadius: "12px",
+              padding: "9px 14px",
+              borderRadius: "var(--radius-md)",
               cursor: "pointer",
-              border: darkMode ? "1px solid #334155" : "1px solid #cbd5e1",
             }}
           >
-            <RotateCcw size={16} /> Reset Data
+            <RotateCcw size={15} /> Reset Data
           </button>
           <button
             data-testid="export-csv-btn"
@@ -349,36 +337,45 @@ export default function DynamicTablesPage() {
               display: "flex",
               alignItems: "center",
               gap: "8px",
-              background: "#6366f1",
-              color: "#ffffff",
               fontWeight: 600,
-              padding: "10px 16px",
-              borderRadius: "12px",
+              padding: "9px 14px",
+              borderRadius: "var(--radius-md)",
               cursor: "pointer",
             }}
           >
-            <Download size={16} /> Export CSV
+            <Download size={15} /> Export CSV
           </button>
           <button
+            className="secondary-btn"
             data-testid="export-json-btn"
             onClick={exportJSON}
             style={{
               display: "flex",
               alignItems: "center",
               gap: "8px",
-              background: darkMode ? "#334155" : "#e2e8f0",
-              color: darkMode ? "#f8fafc" : "#1e293b",
               fontWeight: 600,
-              padding: "10px 16px",
-              borderRadius: "12px",
+              padding: "9px 14px",
+              borderRadius: "var(--radius-md)",
               cursor: "pointer",
-              border: darkMode ? "1px solid #475569" : "1px solid #cbd5e1",
             }}
           >
-            <Download size={16} /> Export JSON
+            <Download size={15} /> Export JSON
           </button>
         </div>
       </div>
+
+      {specMode && (
+        <div className="spec-objective-card" data-testid="tables-spec-objective-box">
+          <div className="spec-badge">CAVEMAN SPEC &middot; DATA TABLES TARGETS</div>
+          <ul className="spec-list">
+            <li><strong>Global Filter:</strong> <code>input[data-testid="table-global-search-input"]</code> &rarr; Type term &rarr; Assert row count drops.</li>
+            <li><strong>Targeted Search:</strong> <code>input[data-testid="table-advanced-search-input"]</code> with Search Mode radios &rarr; Assert match criteria.</li>
+            <li><strong>Inline Edit:</strong> Click cell &rarr; Input opens &rarr; Edit &rarr; Press Enter / Blur &rarr; Assert cell text updated.</li>
+            <li><strong>Export Verification:</strong> Click <code>[data-testid="export-csv-btn"]</code> or <code>[data-testid="export-json-btn"]</code> &rarr; Assert download triggered.</li>
+            <li><strong>Reset Data:</strong> Click <code>[data-testid="reset-table-data-btn"]</code> &rarr; Assert default 10 records restored.</li>
+          </ul>
+        </div>
+      )}
 
       {/* Advanced Filters Panel */}
       <section
@@ -407,9 +404,9 @@ export default function DynamicTablesPage() {
                 showToast("Advanced filters cleared", "info");
               }}
               style={{
-                background: "transparent",
-                color: "#6366f1",
-                border: darkMode ? "1px solid #334155" : "1px solid #cbd5e1",
+                background: "var(--accent-soft)",
+                color: "var(--accent)",
+                border: "1px solid var(--accent-border)",
                 padding: "6px 12px",
                 borderRadius: "8px",
                 fontSize: "12px",
@@ -570,11 +567,11 @@ export default function DynamicTablesPage() {
         className="card"
         data-testid="tables-toolbar-card"
         style={{
-          background: darkMode ? "#1e293b" : "#ffffff",
-          border: darkMode ? "1px solid #334155" : "1px solid #e2e8f0",
-          borderRadius: "16px",
-          padding: "18px 24px",
-          marginBottom: "20px",
+          background: "var(--bg-card)",
+          border: "1px solid var(--border-hairline)",
+          borderRadius: "var(--radius-lg)",
+          padding: "16px 20px",
+          marginBottom: "18px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -658,11 +655,10 @@ export default function DynamicTablesPage() {
         className="table-wrap"
         data-testid="dynamic-web-table-container"
         style={{
-          background: darkMode ? "#1e293b" : "#ffffff",
-          border: darkMode ? "1px solid #334155" : "1px solid #e6ebf3",
-          borderRadius: "16px",
+          background: "var(--bg-card)",
+          border: "1px solid var(--border-hairline)",
+          borderRadius: "var(--radius-lg)",
           overflowX: "auto",
-          boxShadow: darkMode ? "0 10px 30px rgba(0,0,0,0.3)" : "0 10px 30px rgba(15, 23, 42, 0.06)",
         }}
       >
         <table data-testid="dynamic-web-table">
@@ -723,7 +719,7 @@ export default function DynamicTablesPage() {
                 const isEditing = editingId === rec.id;
                 return (
                   <tr key={rec.id} data-testid={`table-row-${rec.id}`}>
-                    <td data-testid={`cell-id-${rec.id}`} style={{ fontWeight: 600, color: darkMode ? "#f8fafc" : "#0f172a" }}>
+                    <td data-testid={`cell-id-${rec.id}`} style={{ fontWeight: 600, color: "var(--text-primary)" }}>
                       {rec.id}
                     </td>
 
@@ -766,8 +762,8 @@ export default function DynamicTablesPage() {
                         </div>
                       ) : (
                         <div>
-                          <div style={{ fontWeight: 600, color: darkMode ? "#f8fafc" : "#0f172a" }}>{rec.name}</div>
-                          <div style={{ fontSize: "12px", color: darkMode ? "#94a3b8" : "#64748b" }}>{rec.email}</div>
+                          <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>{rec.name}</div>
+                          <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{rec.email}</div>
                         </div>
                       )}
                     </td>
@@ -889,9 +885,10 @@ export default function DynamicTablesPage() {
                             <Save size={14} /> Save
                           </button>
                           <button
+                            className="secondary-btn"
                             data-testid={`cancel-btn-${rec.id}`}
                             onClick={cancelEdit}
-                            style={{ background: darkMode ? "#475569" : "#cbd5e1", color: darkMode ? "white" : "#1e293b", padding: "6px 10px", borderRadius: "8px", display: "flex", alignItems: "center", gap: "4px", fontSize: "12px" }}
+                            style={{ padding: "6px 10px", borderRadius: "8px", display: "flex", alignItems: "center", gap: "4px", fontSize: "12px" }}
                             title="Cancel"
                           >
                             <X size={14} />
@@ -901,7 +898,7 @@ export default function DynamicTablesPage() {
                         <button
                           data-testid={`edit-btn-${rec.id}`}
                           onClick={() => startEdit(rec)}
-                          style={{ background: "rgba(99, 102, 241, 0.15)", color: "#6366f1", padding: "6px 12px", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600 }}
+                          style={{ background: "var(--accent-soft)", color: "var(--accent)", border: "1px solid var(--accent-border)", padding: "6px 12px", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600 }}
                           title="Edit Row"
                         >
                           <Edit2 size={14} /> Edit
@@ -936,15 +933,13 @@ export default function DynamicTablesPage() {
 
         <div className="pagination-controls" data-testid="pagination-controls" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <button
+            className="secondary-btn"
             data-testid="pagination-prev"
             disabled={safePage === 1}
             onClick={() => setCurrentPage(Math.max(safePage - 1, 1))}
             style={{
-              padding: "8px 14px",
-              borderRadius: "10px",
-              background: darkMode ? "#1e293b" : "#ffffff",
-              border: darkMode ? "1px solid #334155" : "1px solid #cbd5e1",
-              color: darkMode ? "#f8fafc" : "#1e293b",
+              padding: "7px 13px",
+              borderRadius: "var(--radius-md)",
               fontWeight: 600,
               fontSize: "13px",
             }}
@@ -955,17 +950,19 @@ export default function DynamicTablesPage() {
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
             <button
               key={num}
+              className={safePage === num ? "" : "secondary-btn"}
               data-testid={`pagination-page-${num}`}
               aria-current={safePage === num ? "page" : undefined}
               onClick={() => setCurrentPage(num)}
               style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "10px",
-                background: safePage === num ? "#6366f1" : darkMode ? "#1e293b" : "#ffffff",
-                border: safePage === num ? "1px solid #6366f1" : darkMode ? "1px solid #334155" : "1px solid #cbd5e1",
-                color: safePage === num ? "#ffffff" : darkMode ? "#f8fafc" : "#1e293b",
-                fontWeight: 700,
+                width: "34px",
+                height: "34px",
+                padding: 0,
+                borderRadius: "var(--radius-md)",
+                background: safePage === num ? "var(--accent)" : "var(--bg-card)",
+                border: safePage === num ? "1px solid var(--accent)" : "1px solid var(--border-hairline)",
+                color: safePage === num ? "#ffffff" : "var(--text-primary)",
+                fontWeight: 600,
                 fontSize: "13px",
                 cursor: "pointer",
               }}
@@ -975,15 +972,13 @@ export default function DynamicTablesPage() {
           ))}
 
           <button
+            className="secondary-btn"
             data-testid="pagination-next"
             disabled={safePage === totalPages}
             onClick={() => setCurrentPage(Math.min(safePage + 1, totalPages))}
             style={{
-              padding: "8px 14px",
-              borderRadius: "10px",
-              background: darkMode ? "#1e293b" : "#ffffff",
-              border: darkMode ? "1px solid #334155" : "1px solid #cbd5e1",
-              color: darkMode ? "#f8fafc" : "#1e293b",
+              padding: "7px 13px",
+              borderRadius: "var(--radius-md)",
               fontWeight: 600,
               fontSize: "13px",
             }}

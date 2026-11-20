@@ -88,6 +88,9 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
             title="Suggestion Box Form"
             data-testid="feedback-google-form-iframe"
             className="feedback-google-form-iframe"
+            sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
+            referrerPolicy="strict-origin-when-cross-origin"
+            loading="lazy"
           >
             Loading suggestion form…
           </iframe>

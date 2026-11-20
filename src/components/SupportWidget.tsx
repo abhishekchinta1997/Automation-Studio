@@ -1,19 +1,55 @@
-import { useState, useEffect } from "react";
-import { Coffee, X, Copy, Check, Heart, QrCode, ExternalLink } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Coffee, X, Copy, Check, Heart, QrCode, ExternalLink, Globe, IndianRupee, Utensils, Server, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { useApp } from "../context/AppContext";
 
-const DEFAULT_UPI_ID = "abhishekchinta@ybl";
-const KOFI_LINK = "https://ko-fi.com/chinta_abhishek";
+// Assemble default VPA (abhishekchinta@ibl, matching the PhonePe QR payload) and Ko-fi URL
+// at runtime from char codes if VITE_SUPPORT_* env vars are not provided, preventing static bundle scrapers.
+const FALLBACK_VPA_CODES = [97, 98, 104, 105, 115, 104, 101, 107, 99, 104, 105, 110, 116, 97, 64, 105, 98, 108];
+const FALLBACK_KOFI_CODES = [
+  104, 116, 116, 112, 115, 58, 47, 47, 107, 111, 45, 102, 105, 46, 99, 111, 109, 47,
+  99, 104, 105, 110, 116, 97, 95, 97, 98, 104, 105, 115, 104, 101, 107,
+];
+
+function resolveSupportUpiId(): string {
+  const envVal = import.meta.env.VITE_SUPPORT_UPI_ID?.trim();
+  if (envVal) {
+    const sanitized = envVal.replace(/[^a-zA-Z0-9.\-_@]/g, "");
+    if (sanitized.includes("@")) return sanitized;
+  }
+  return String.fromCharCode(...FALLBACK_VPA_CODES);
+}
+
+function resolveSupportKofiUrl(): string {
+  const envVal = import.meta.env.VITE_SUPPORT_KOFI_URL?.trim();
+  if (envVal && /^https:\/\/(www\.)?ko-fi\.com\/[a-zA-Z0-9_\-]+$/i.test(envVal)) return envVal;
+  return String.fromCharCode(...FALLBACK_KOFI_CODES);
+}
+
+function maskUpiId(vpa: string): string {
+  const atIndex = vpa.indexOf("@");
+  if (atIndex <= 4) return "••••@upi";
+  const prefix = vpa.slice(0, 4);
+  const handle = vpa.slice(atIndex);
+  return `${prefix}••••••••${handle}`;
+}
 
 export default function SupportWidget() {
   const { showToast } = useApp();
   const [modalOpen, setModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"india" | "global">("india");
   const [copiedUpi, setCopiedUpi] = useState(false);
+  const [upiRevealed, setUpiRevealed] = useState(false);
   const [selectedTier, setSelectedTier] = useState<string>("$5");
 
+  const upiId = useMemo(() => resolveSupportUpiId(), []);
+  const kofiUrl = useMemo(() => resolveSupportKofiUrl(), []);
+  const maskedUpiId = useMemo(() => maskUpiId(upiId), [upiId]);
+
   useEffect(() => {
-    if (!modalOpen) return;
+    if (!modalOpen) {
+      setUpiRevealed(false);
+      return;
+    }
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -25,11 +61,12 @@ export default function SupportWidget() {
   }, [modalOpen]);
 
   function handleCopyUpi() {
+    setUpiRevealed(true);
     if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-      navigator.clipboard.writeText(DEFAULT_UPI_ID).catch(() => {});
+      navigator.clipboard.writeText(upiId).catch(() => {});
     }
     setCopiedUpi(true);
-    showToast(`Copied UPI ID: ${DEFAULT_UPI_ID}`, "success");
+    showToast(`Copied UPI ID: ${upiId}`, "success");
     window.setTimeout(() => setCopiedUpi(false), 2000);
   }
 
@@ -38,21 +75,21 @@ export default function SupportWidget() {
       amount: "$3",
       label: "Coffee",
       description: "Quick caffeine boost to fuel bug fixes & new test cases",
-      icon: "☕",
+      icon: <Coffee size={18} strokeWidth={1.75} className="text-amber-500 dark:text-amber-400" />,
       highlight: false,
     },
     {
       amount: "$5",
       label: "Snack",
       description: "Support ongoing QA sandbox modules & feature updates",
-      icon: "🥨",
+      icon: <Utensils size={18} strokeWidth={1.75} />,
       highlight: true,
     },
     {
       amount: "$10",
       label: "Server Sponsor",
       description: "Help cover domain, hosting, and CI/CD automation costs",
-      icon: "🚀",
+      icon: <Server size={18} strokeWidth={1.75} />,
       highlight: false,
     },
   ];
@@ -69,7 +106,7 @@ export default function SupportWidget() {
         onClick={() => setModalOpen(true)}
       >
         <span className="support-fab-icon-wrapper">
-          <Coffee size={18} className="support-fab-icon" />
+          <Coffee size={18} className="support-fab-icon text-amber-500 dark:text-amber-400" />
         </span>
         <span className="support-fab-text">Support</span>
       </button>
@@ -125,7 +162,7 @@ export default function SupportWidget() {
                 data-testid="support-tab-india"
                 onClick={() => setActiveTab("india")}
               >
-                <span>🇮🇳</span>
+                <IndianRupee size={14} strokeWidth={1.75} />
                 <span>India (UPI)</span>
                 <span className="support-tab-badge">0% Fee</span>
               </button>
@@ -137,7 +174,7 @@ export default function SupportWidget() {
                 data-testid="support-tab-global"
                 onClick={() => setActiveTab("global")}
               >
-                <span>🌍</span>
+                <Globe size={14} strokeWidth={1.75} />
                 <span>Global (USD / PayPal)</span>
               </button>
             </div>
@@ -150,7 +187,7 @@ export default function SupportWidget() {
                     <img
                       src="/upi-qr.png"
                       alt="UPI QR Code to support Automation Studio"
-                      className="support-qr-image"
+                      className={`support-qr-image ${upiRevealed ? "" : "support-qr-blurred"}`}
                       data-testid="support-upi-qr-image"
                       onError={(e) => {
                         // Fallback UI if image fails
@@ -160,16 +197,41 @@ export default function SupportWidget() {
                       }}
                     />
                     <div className="support-qr-fallback" style={{ display: "none" }}>
-                      <QrCode size={56} color="#6366f1" />
+                      <QrCode size={56} color="#14b8a6" />
                       <span>Scan to pay via UPI</span>
                     </div>
+                    {!upiRevealed && (
+                      <button
+                        type="button"
+                        className="support-qr-privacy-overlay"
+                        data-testid="support-reveal-upi-btn"
+                        aria-label="Reveal UPI QR code and VPA"
+                        onClick={() => setUpiRevealed(true)}
+                      >
+                        <ShieldCheck size={18} />
+                        <span>Click to Reveal QR</span>
+                      </button>
+                    )}
                   </div>
 
                   <div className="support-upi-details">
                     <div className="support-upi-id-box">
-                      <span className="support-upi-label">UPI ID</span>
+                      <div className="between" style={{ alignItems: "center", gap: "8px", marginBottom: "2px" }}>
+                        <span className="support-upi-label">UPI ID (Anti-Spam Protected)</span>
+                        <button
+                          type="button"
+                          className="support-upi-visibility-btn"
+                          data-testid="support-toggle-upi-visibility-btn"
+                          aria-label={upiRevealed ? "Hide UPI ID" : "Reveal UPI ID"}
+                          title={upiRevealed ? "Hide UPI ID" : "Reveal full UPI ID"}
+                          onClick={() => setUpiRevealed((prev) => !prev)}
+                        >
+                          {upiRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
+                          <span>{upiRevealed ? "Hide" : "Reveal"}</span>
+                        </button>
+                      </div>
                       <code className="support-upi-code" data-testid="support-upi-id-text">
-                        {DEFAULT_UPI_ID}
+                        {upiRevealed ? upiId : maskedUpiId}
                       </code>
                     </div>
 
@@ -187,7 +249,7 @@ export default function SupportWidget() {
                       ) : (
                         <>
                           <Copy size={16} />
-                          <span>Copy UPI ID</span>
+                          <span>{upiRevealed ? "Copy UPI ID" : "Reveal & Copy UPI ID"}</span>
                         </>
                       )}
                     </button>
@@ -219,10 +281,10 @@ export default function SupportWidget() {
                     </span>
                     <div className="support-kofi-header-text">
                       <h3 className="support-kofi-title" data-testid="support-kofi-title">
-                        Support via Ko-fi / Global Cards
+                        Support via PayPal / Global Cards
                       </h3>
                       <p className="support-kofi-desc" data-testid="support-kofi-desc">
-                        Support the continuous development of Automation Studio from anywhere in the world. Accepts International Credit/Debit Cards, Apple Pay, Google Pay, and PayPal.
+                        Support the continuous development of Automation Studio from anywhere in the world. Accepts PayPal, International Credit/Debit Cards, Apple Pay, and Google Pay (securely processed via Ko-fi).
                       </p>
                     </div>
                   </div>
@@ -234,15 +296,30 @@ export default function SupportWidget() {
                       return (
                         <div
                           key={tier.amount}
+                          role="button"
+                          tabIndex={0}
+                          aria-pressed={isSelected}
+                          aria-label={`Select ${tier.amount} ${tier.label} tier`}
                           className={`support-tier-card ${isSelected ? "selected" : ""} ${tier.highlight ? "popular" : ""}`}
                           data-testid={`support-tier-${tier.amount.replace("$", "")}`}
                           onClick={() => setSelectedTier(tier.amount)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSelectedTier(tier.amount);
+                            }
+                          }}
                         >
                           {tier.highlight && <span className="support-popular-badge">Most Popular</span>}
                           <div className="support-tier-icon">{tier.icon}</div>
                           <div className="support-tier-amount">{tier.amount}</div>
                           <div className="support-tier-label">{tier.label}</div>
                           <p className="support-tier-desc">{tier.description}</p>
+                          {isSelected && (
+                            <span className="support-tier-check-pill" aria-hidden="true">
+                              <Check size={11} strokeWidth={3} />
+                            </span>
+                          )}
                         </div>
                       );
                     })}
@@ -251,14 +328,15 @@ export default function SupportWidget() {
                   {/* Main Action Button */}
                   <div className="support-kofi-actions">
                     <a
-                      href={KOFI_LINK}
+                      href={kofiUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="support-kofi-main-btn bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold py-2.5 px-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2.5 w-full"
                       data-testid="support-kofi-main-btn"
                     >
                       <Coffee size={18} />
-                      <span>Support on Ko-fi (USD / Cards)</span>
+                      <span>Continue with PayPal / Card on Ko-fi</span>
+                      <span className="support-selected-pill">{selectedTier}</span>
                       <ExternalLink size={16} />
                     </a>
                   </div>

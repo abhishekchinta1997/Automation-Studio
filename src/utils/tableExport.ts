@@ -1,17 +1,37 @@
 import { DynamicRecord, TableSortDirection, TableSortKey } from "../types/table";
 
 /**
+ * Neutralizes spreadsheet formula injection triggers (=, +, -, @, Tab, CR).
+ */
+export function sanitizeSpreadsheetCell(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const str = String(value);
+  if (/^[=+\-@\t\r]/.test(str)) {
+    return "'" + str;
+  }
+  return str;
+}
+
+/**
+ * Escapes HTML special characters to prevent XSS in generated HTML/PDF/Excel documents.
+ */
+export function escapeHtml(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
  * Escapes a cell value for standard CSV compatibility.
- * Prevents formula injection (=, +, -, @) and escapes quotes/commas/newlines.
+ * Prevents formula injection (=, +, -, @, Tab, CR) and escapes quotes/commas/newlines.
  */
 export function escapeCSVCell(value: unknown): string {
   if (value === null || value === undefined) return '""';
-  let str = String(value);
-
-  // Prevent formula injection in spreadsheet software
-  if (/^[=+\-@]/.test(str)) {
-    str = "'" + str;
-  }
+  const str = sanitizeSpreadsheetCell(value);
 
   // Quote if it contains special characters or double quotes
   if (/[",\n\r]/.test(str)) {

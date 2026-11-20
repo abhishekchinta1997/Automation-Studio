@@ -1,7 +1,21 @@
-import { useState, useRef, useEffect, ChangeEvent } from "react";
-import { Check } from "lucide-react";
+import { useState, useRef, useEffect, useMemo, ChangeEvent } from "react";
+import {
+  Check,
+  Sliders,
+  Table as TableIcon,
+  Timer,
+  Layers,
+  Bell,
+  Terminal,
+  EyeOff,
+  CheckCircle2,
+  Loader2,
+  History,
+  FileCode2,
+} from "lucide-react";
 import { useApp } from "../context/AppContext";
 import CustomSelect from "../components/CustomSelect";
+import { AsyncWaitFlowDiagram } from "../components/QaDiagrams";
 
 type ActionLog = {
   id: string;
@@ -26,8 +40,39 @@ const initialTableData: TableRow[] = [
   { id: "EMP-105", name: "Ethan Hunt", department: "Security", role: "Auditor", status: "Inactive" },
 ];
 
+const COUNTRIES_LIST = [
+  "Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Austria",
+  "Bangladesh", "Belgium", "Brazil", "Canada", "Chile", "China", "Colombia",
+  "Denmark", "Egypt", "Finland", "France", "Germany", "Greece", "Hong Kong",
+  "Hungary", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy",
+  "Japan", "Kenya", "Malaysia", "Mexico", "Netherlands", "New Zealand", "Nigeria",
+  "Norway", "Pakistan", "Peru", "Philippines", "Poland", "Portugal", "Romania",
+  "Russia", "Saudi Arabia", "Singapore", "South Africa", "South Korea", "Spain",
+  "Sweden", "Switzerland", "Taiwan", "Thailand", "Turkey", "Ukraine",
+  "United Arab Emirates", "United Kingdom", "United States", "Vietnam"
+];
+
+const RESERVED_STORAGE_KEYS = new Set([
+  "automation-users",
+  "automation-current-user",
+  "automation-dark-mode",
+  "automation-dynamic-records",
+  "automation-spec-mode",
+  "__proto__",
+  "constructor",
+  "prototype",
+]);
+
+function containsXssTestPattern(input: string): boolean {
+  return /<\s*\/?\s*(script|img|svg|iframe|object|embed|body|style|link|meta)\b|javascript\s*:|on[a-z]+\s*=/i.test(input);
+}
+
+function sanitizeControlChars(input: string, maxLen = 500): string {
+  return input.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").slice(0, maxLen);
+}
+
 export default function AutomationLabPage() {
-  const { showToast, darkMode } = useApp();
+  const { showToast, darkMode, specMode, setSpecMode } = useApp();
 
   const [activeTab, setActiveTab] = useState<"forms" | "tables" | "async" | "frames" | "notifications">("forms");
   const [inspectorVisible, setInspectorVisible] = useState(true);
@@ -76,25 +121,20 @@ export default function AutomationLabPage() {
   const [countdownRemaining, setCountdownRemaining] = useState<number | null>(null);
   const [countdownCompletedMsg, setCountdownCompletedMsg] = useState("");
   const countdownIntervalRef = useRef<number | null>(null);
+  const loadingTimeoutRef = useRef<number | null>(null);
+  const ajaxTimeoutRef = useRef<number | null>(null);
+  const logSeqRef = useRef<number>(0);
 
   // Searchable Country Dropdown State
-  const countriesList = [
-    "Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Austria",
-    "Bangladesh", "Belgium", "Brazil", "Canada", "Chile", "China", "Colombia",
-    "Denmark", "Egypt", "Finland", "France", "Germany", "Greece", "Hong Kong",
-    "Hungary", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy",
-    "Japan", "Kenya", "Malaysia", "Mexico", "Netherlands", "New Zealand", "Nigeria",
-    "Norway", "Pakistan", "Peru", "Philippines", "Poland", "Portugal", "Romania",
-    "Russia", "Saudi Arabia", "Singapore", "South Africa", "South Korea", "Spain",
-    "Sweden", "Switzerland", "Taiwan", "Thailand", "Turkey", "Ukraine",
-    "United Arab Emirates", "United Kingdom", "United States", "Vietnam"
-  ];
   const [countryQuery, setCountryQuery] = useState("");
   const [countryOpen, setCountryOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const filteredCountries = useMemo(
+    () => COUNTRIES_LIST.filter((c) => c.toLowerCase().includes(countryQuery.toLowerCase())),
+    [countryQuery]
+  );
 
   // Advanced Features State
-  const [tableData] = useState<TableRow[]>(initialTableData);
   const [tableSearch, setTableSearch] = useState("");
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [tableSortKey, setTableSortKey] = useState<keyof TableRow>("id");
@@ -108,12 +148,16 @@ export default function AutomationLabPage() {
   const [iframeClicked, setIframeClicked] = useState(false);
   const [shadowDomClicked, setShadowDomClicked] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     return () => {
       if (countdownIntervalRef.current !== null) {
         window.clearInterval(countdownIntervalRef.current);
+      }
+      if (loadingTimeoutRef.current !== null) {
+        window.clearTimeout(loadingTimeoutRef.current);
+      }
+      if (ajaxTimeoutRef.current !== null) {
+        window.clearTimeout(ajaxTimeoutRef.current);
       }
     };
   }, []);
@@ -142,12 +186,19 @@ export default function AutomationLabPage() {
     return () => window.removeEventListener("keydown", handleEscape);
   }, [modalOpen, sentMessageModal, countryOpen, randomPopup]);
 
-  function logAction(title: string, message: string, type: "success" | "error" | "info" | "warning", meta?: Record<string, any>) {
+  function logAction(title: string, message: string, type: "success" | "error" | "info" | "warning", meta?: Record<string, unknown>) {
     const time = new Date().toLocaleTimeString();
+    logSeqRef.current += 1;
+    const logId = `LOG-${Date.now()}-${logSeqRef.current}`;
+    const safeMessage = sanitizeControlChars(message, 1000);
+    const hasXss =
+      containsXssTestPattern(safeMessage) ||
+      (meta ? Object.values(meta).some((v) => typeof v === "string" && containsXssTestPattern(v)) : false);
+    const enrichedMeta = hasXss ? { ...meta, xssPayloadNeutralized: true } : meta;
     setActiveAction(title);
-    setOutputResult({ title, message, type, timestamp: time, meta });
+    setOutputResult({ title, message: safeMessage, type, timestamp: time, meta: enrichedMeta });
     setLogs((prev) => [
-      { id: "LOG-" + Date.now(), time, text: `${title}: ${message}`, type },
+      { id: logId, time, text: `${title}: ${safeMessage}`, type },
       ...prev,
     ].slice(0, 30));
   }
@@ -306,7 +357,7 @@ export default function AutomationLabPage() {
         style={{
           marginTop: "20px",
           paddingTop: "16px",
-          borderTop: darkMode ? "1px solid #334155" : "1px solid #e2e8f0",
+          borderTop: "1px solid var(--border-hairline)",
         }}
       >
         <div className="lab-element-header">
@@ -346,13 +397,12 @@ export default function AutomationLabPage() {
           {countdownRemaining !== null && (
             <button
               type="button"
+              className="secondary-btn"
               data-testid="lab-custom-countdown-cancel-btn"
               onClick={handleCancelCountdown}
               style={{
                 whiteSpace: "nowrap",
                 padding: "10px 14px",
-                background: darkMode ? "#334155" : "#e2e8f0",
-                color: darkMode ? "#f8fafc" : "#1e293b",
               }}
             >
               Cancel
@@ -383,11 +433,10 @@ export default function AutomationLabPage() {
               display: "flex",
               alignItems: "center",
               gap: "10px",
-              fontWeight: 700,
-              color: darkMode ? "#a5b4fc" : "#4f46e5",
+              fontWeight: 600,
             }}
           >
-            <span>⏱️</span>
+            <Timer size={16} strokeWidth={1.75} />
             <span>Waiting... {countdownRemaining}s remaining</span>
           </div>
         )}
@@ -399,11 +448,15 @@ export default function AutomationLabPage() {
             role="status"
             style={{
               marginTop: "12px",
-              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontWeight: 600,
               color: darkMode ? "#34d399" : "#15803d",
             }}
           >
-            ✅ {countdownCompletedMsg}
+            <CheckCircle2 size={16} strokeWidth={1.75} />
+            <span>{countdownCompletedMsg}</span>
           </div>
         )}
       </div>
@@ -413,28 +466,40 @@ export default function AutomationLabPage() {
   const [loadingState, setLoadingState] = useState(false);
 
   function handleAsyncLoading() {
+    if (loadingTimeoutRef.current !== null) {
+      window.clearTimeout(loadingTimeoutRef.current);
+    }
     setLoadingState(true);
     logAction("Show Loading State", "Loading state initiated...", "info");
-    setTimeout(() => {
+    loadingTimeoutRef.current = window.setTimeout(() => {
+      loadingTimeoutRef.current = null;
       setLoadingState(false);
       logAction("Show Loading State", "Loading operation completed successfully after 1.5s.", "success");
     }, 1500);
   }
 
   function handleSimulateApiDelay() {
+    if (loadingTimeoutRef.current !== null) {
+      window.clearTimeout(loadingTimeoutRef.current);
+    }
     setLoadingState(true);
     logAction("Simulate API Delay", "Network request sent to mock server (/api/practice/delay)...", "info");
-    setTimeout(() => {
+    loadingTimeoutRef.current = window.setTimeout(() => {
+      loadingTimeoutRef.current = null;
       setLoadingState(false);
       logAction("Simulate API Delay", "API response received: HTTP 200 OK (1840ms latency).", "success", { endpoint: "/api/practice/delay", status: 200, latencyMs: 1840 });
     }, 1840);
   }
 
   function handleAjaxWait(delayMs: number) {
+    if (ajaxTimeoutRef.current !== null) {
+      window.clearTimeout(ajaxTimeoutRef.current);
+    }
     setAjaxLoading(true);
     setAjaxResultText("Loading AJAX data...");
     logAction("AJAX Wait Simulation", `Waiting ${delayMs}ms for async data load...`, "info");
-    setTimeout(() => {
+    ajaxTimeoutRef.current = window.setTimeout(() => {
+      ajaxTimeoutRef.current = null;
       setAjaxLoading(false);
       const res = `Successfully loaded AJAX payload after ${delayMs}ms delay! Record count: 42.`;
       setAjaxResultText(res);
@@ -445,26 +510,23 @@ export default function AutomationLabPage() {
   function handleFileUpload(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
-      setSelectedFileName(file.name);
-      logAction("File Upload", `Selected file: ${file.name} (${file.size} bytes)`, "success", { fileName: file.name, fileSize: file.size });
+      const safeName = sanitizeControlChars(file.name, 255);
+      setSelectedFileName(safeName);
+      logAction("File Upload", `Selected file: ${safeName} (${file.size} bytes)`, "success", { fileName: safeName, fileSize: file.size });
     }
   }
 
-  const filteredTableRows = tableData
+  const filteredTableRows = initialTableData
     .filter((row) =>
       `${row.id} ${row.name} ${row.department} ${row.role} ${row.status}`.toLowerCase().includes(tableSearch.toLowerCase())
     )
     .sort((a, b) => {
-      let aVal = a[tableSortKey];
-      let bVal = b[tableSortKey];
-      let result = 0;
-      if (typeof aVal === "string" && typeof bVal === "string") {
-        result = aVal.localeCompare(bVal);
-      } else {
-        result = String(aVal).localeCompare(String(bVal));
-      }
+      const result = a[tableSortKey].localeCompare(b[tableSortKey]);
       return tableSortDirection === "asc" ? result : -result;
     });
+
+  const allFilteredSelected =
+    filteredTableRows.length > 0 && filteredTableRows.every((row) => selectedRows.includes(row.id));
 
   function handleTableSort(key: keyof TableRow) {
     if (tableSortKey === key) {
@@ -489,7 +551,9 @@ export default function AutomationLabPage() {
         <div>
           <h1>Interactive QA Sandbox & Live Inspector</h1>
           <p className="muted">
-            Professional testbed for Selenium, Playwright, and Cypress. Build test scripts, practice element interactions, and inspect telemetry in real time.
+            {specMode
+              ? "RAW SPEC MODE: Target locators, trigger events, and verify DOM telemetry directly."
+              : "Professional testbed for Selenium, Playwright, and Cypress. Build test scripts, practice element interactions, and inspect telemetry in real time."}
           </p>
         </div>
       </div>
@@ -502,39 +566,61 @@ export default function AutomationLabPage() {
             data-testid="lab-tab-forms"
             onClick={() => setActiveTab("forms")}
           >
-            📝 Form Controls
+            <Sliders size={15} strokeWidth={1.75} />
+            <span>Form Controls</span>
           </button>
           <button
             className={activeTab === "tables" ? "lab-tab-btn active" : "lab-tab-btn"}
             data-testid="lab-tab-tables"
             onClick={() => setActiveTab("tables")}
           >
-            📊 Data Tables
+            <TableIcon size={15} strokeWidth={1.75} />
+            <span>Data Tables</span>
           </button>
           <button
             className={activeTab === "async" ? "lab-tab-btn active" : "lab-tab-btn"}
             data-testid="lab-tab-async"
             onClick={() => setActiveTab("async")}
           >
-            ⏱️ Async & Waits
+            <Timer size={15} strokeWidth={1.75} />
+            <span>Async &amp; Waits</span>
           </button>
           <button
             className={activeTab === "frames" ? "lab-tab-btn active" : "lab-tab-btn"}
             data-testid="lab-tab-frames"
             onClick={() => setActiveTab("frames")}
           >
-            🔲 Frames & Storage
+            <Layers size={15} strokeWidth={1.75} />
+            <span>Frames &amp; Storage</span>
           </button>
           <button
             className={activeTab === "notifications" ? "lab-tab-btn active" : "lab-tab-btn"}
             data-testid="lab-tab-notifications"
             onClick={() => setActiveTab("notifications")}
           >
-            🔔 Toasts & Modals
+            <Bell size={15} strokeWidth={1.75} />
+            <span>Toasts &amp; Modals</span>
           </button>
         </div>
 
-        <div>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <button
+            data-testid="lab-spec-mode-toggle-btn"
+            className={`inspector-toggle-pill ${specMode ? "active-spec" : ""}`}
+            onClick={() => {
+              setSpecMode(!specMode);
+              showToast(
+                !specMode
+                  ? "Caveman / Spec Mode enabled: raw test objectives active"
+                  : "Standard View enabled: descriptive guides active",
+                "info"
+              );
+            }}
+            title="Toggle between Standard Guide view and Caveman / Raw Spec mode"
+          >
+            <FileCode2 size={14} strokeWidth={1.75} />
+            <span>{specMode ? "Caveman Spec" : "Standard View"}</span>
+          </button>
           <button
             data-testid="toggle-inspector-btn"
             className="inspector-toggle-pill"
@@ -544,7 +630,8 @@ export default function AutomationLabPage() {
               logAction("Toggle Inspector", newState ? "Live Inspector shown." : "Live Inspector hidden.", "info");
             }}
           >
-            {inspectorVisible ? "✕ Hide Inspector" : "🔍 Show Inspector"}
+            {inspectorVisible ? <EyeOff size={14} strokeWidth={1.75} /> : <Terminal size={14} strokeWidth={1.75} />}
+            <span>{inspectorVisible ? "Hide Inspector" : "Show Inspector"}</span>
           </button>
         </div>
       </div>
@@ -556,12 +643,32 @@ export default function AutomationLabPage() {
           {activeTab === "forms" && (
             <section className="card lab-section animate-fade" data-testid="lab-section-form-controls">
               <h3>Form Controls & Input Elements</h3>
-              <p className="muted">Practice web form elements with explicit subheadings, horizontal radio buttons, and vertical checkboxes.</p>
+              <p className="muted">
+                {specMode
+                  ? "RAW SPEC: Form controls & inputs · Target locators · Verify DOM change events"
+                  : "Practice web form elements with explicit subheadings, horizontal radio buttons, and vertical checkboxes."}
+              </p>
+
+              {specMode && (
+                <div className="spec-objective-card" data-testid="spec-objective-box">
+                  <div className="spec-badge">CAVEMAN SPEC &middot; FORM CONTROLS OBJECTIVES</div>
+                  <ul className="spec-list">
+                    <li><strong>Country Select:</strong> <code>input[data-testid="country-search-input"]</code> &rarr; Type query &rarr; [Enter] / click <code>[data-testid="country-option-item"]</code> &rarr; Assert input value.</li>
+                    <li><strong>Framework Dropdown:</strong> Open <code>[data-testid="lab-dropdown-select"]</code> &rarr; Pick option &rarr; Assert selection logged in inspector.</li>
+                    <li><strong>Multiselect List:</strong> Click items in <code>[data-testid="lab-multiselect"]</code> &rarr; Assert <code>aria-selected="true"</code>.</li>
+                    <li><strong>Radio Group:</strong> Click <code>[data-testid="lab-radio-*"]</code> &rarr; Assert checked state &amp; inspector output.</li>
+                    <li><strong>Checkbox Group:</strong> Toggle <code>[data-testid="lab-checkbox-*"]</code> &rarr; Assert boolean state.</li>
+                    <li><strong>Range Slider:</strong> Drag <code>[data-testid="lab-range-slider"]</code> &rarr; Assert <code>[data-testid="lab-slider-value-display"]</code> matches value.</li>
+                    <li><strong>Text Send:</strong> Fill <code>#lab-text-input</code> &rarr; Click <code>Send</code> &rarr; Assert modal <code>[data-testid="lab-sent-confirmation-modal"]</code>.</li>
+                    <li><strong>File Upload:</strong> Upload file to <code>#lab-file-input</code> &rarr; Assert filename in <code>[data-testid="lab-uploaded-file-name"]</code>.</li>
+                  </ul>
+                </div>
+              )}
 
               <div className="lab-form-group">
                 <div className="lab-element-header">
                   <h4>Searchable Country Dropdown</h4>
-                  <small className="muted">Type to filter, use keyboard arrows or click to select</small>
+                  <small className="muted">{specMode ? "SPEC: input[data-testid=\"country-search-input\"] -> Type -> Select option" : "Type to filter, use keyboard arrows or click to select"}</small>
                 </div>
                 <div className="country-dropdown-wrapper">
                   <input
@@ -575,58 +682,54 @@ export default function AutomationLabPage() {
                       setHighlightedIndex(0);
                     }}
                     onKeyDown={(e) => {
-                      const filtered = countriesList.filter((c) => c.toLowerCase().includes(countryQuery.toLowerCase()));
                       if (!countryOpen && (e.key === "ArrowDown" || e.key === "Enter") && countryQuery.trim().length > 0) {
                         setCountryOpen(true);
                         return;
                       }
                       if (e.key === "ArrowDown") {
                         e.preventDefault();
-                        if (countryOpen && filtered.length) {
-                          setHighlightedIndex((prev) => (prev + 1) % filtered.length);
+                        if (countryOpen && filteredCountries.length) {
+                          setHighlightedIndex((prev) => (prev + 1) % filteredCountries.length);
                         }
                       } else if (e.key === "ArrowUp") {
                         e.preventDefault();
-                        if (countryOpen && filtered.length) {
-                          setHighlightedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+                        if (countryOpen && filteredCountries.length) {
+                          setHighlightedIndex((prev) => (prev - 1 + filteredCountries.length) % filteredCountries.length);
                         }
-                      } else if (e.key === "Enter" && countryOpen && filtered.length > 0) {
+                      } else if (e.key === "Enter" && countryOpen && filteredCountries.length > 0) {
                         e.preventDefault();
-                        const selected = filtered[highlightedIndex] || filtered[0];
+                        const selected = filteredCountries[highlightedIndex] || filteredCountries[0];
                         setCountryQuery(selected);
                         setCountryOpen(false);
                         logAction("Country Selected", `Selected country via keyboard: ${selected}`, "success", { country: selected });
                       } else if (e.key === "Escape") {
+                        e.stopPropagation();
                         setCountryOpen(false);
                       }
                     }}
                   />
                   {countryOpen && countryQuery.trim().length > 0 && (
                     <ul className="country-dropdown-list" data-testid="country-dropdown-list">
-                      {countriesList
-                        .filter((c) => c.toLowerCase().includes(countryQuery.toLowerCase()))
-                        .length === 0 ? (
+                      {filteredCountries.length === 0 ? (
                         <li className="country-option-empty" data-testid="country-option-empty">
                           No matching countries found
                         </li>
                       ) : (
-                        countriesList
-                          .filter((c) => c.toLowerCase().includes(countryQuery.toLowerCase()))
-                          .map((country, index) => (
-                            <li
-                              key={country}
-                              className={`country-option-item ${index === highlightedIndex ? "highlighted" : ""}`}
-                              data-testid="country-option-item"
-                              onMouseEnter={() => setHighlightedIndex(index)}
-                              onClick={() => {
-                                setCountryQuery(country);
-                                setCountryOpen(false);
-                                logAction("Country Selected", `Selected country via click: ${country}`, "success", { country });
-                              }}
-                            >
-                              {country}
-                            </li>
-                          ))
+                        filteredCountries.map((country, index) => (
+                          <li
+                            key={country}
+                            className={`country-option-item ${index === highlightedIndex ? "highlighted" : ""}`}
+                            data-testid="country-option-item"
+                            onMouseEnter={() => setHighlightedIndex(index)}
+                            onClick={() => {
+                              setCountryQuery(country);
+                              setCountryOpen(false);
+                              logAction("Country Selected", `Selected country via click: ${country}`, "success", { country });
+                            }}
+                          >
+                            {country}
+                          </li>
+                        ))
                       )}
                     </ul>
                   )}
@@ -784,7 +887,7 @@ export default function AutomationLabPage() {
                 </div>
                 <div className="between" style={{ marginBottom: "4px" }}>
                   <label htmlFor="lab-range-slider" style={{ margin: 0 }}>Threshold Level</label>
-                  <span data-testid="lab-slider-value-display" style={{ fontWeight: "900", color: "#6046e8", background: "#f3f0ff", padding: "2px 10px", borderRadius: "999px", fontSize: "13px" }}>
+                  <span data-testid="lab-slider-value-display" style={{ fontWeight: "700", color: "var(--accent)", background: "var(--accent-soft)", border: "1px solid var(--accent-border)", padding: "2px 10px", borderRadius: "999px", fontSize: "12.5px" }}>
                     {sliderValue}%
                   </span>
                 </div>
@@ -870,7 +973,6 @@ export default function AutomationLabPage() {
                   id="lab-file-input"
                   type="file"
                   data-testid="lab-file-input"
-                  ref={fileInputRef}
                   onChange={handleFileUpload}
                 />
                 {selectedFileName && <small className="muted" data-testid="lab-uploaded-file-name">Uploaded: {selectedFileName}</small>}
@@ -881,7 +983,25 @@ export default function AutomationLabPage() {
           {activeTab === "tables" && (
             <section className="card lab-section animate-fade" data-testid="lab-section-tables">
               <h3>Dynamic Data Tables & Pagination</h3>
-              <p className="muted">Test table sorting, row selection, filtering, and data extraction.</p>
+              <p className="muted">
+                {specMode
+                  ? "RAW SPEC: Filter across columns · Sort asc/desc · Bulk select rows · Verify empty state"
+                  : "Test table sorting, multi-column search filtering, row selection checkboxes, and bulk actions."}
+              </p>
+
+              {specMode && (
+                <div className="spec-objective-card" data-testid="spec-objective-box">
+                  <div className="spec-badge">CAVEMAN SPEC &middot; DATA TABLES OBJECTIVES</div>
+                  <ul className="spec-list">
+                    <li><strong>Search Filter:</strong> Fill <code>[data-testid="lab-table-search-input"]</code> &rarr; Assert row count updates in real time.</li>
+                    <li><strong>Empty State:</strong> Search non-existent term &rarr; Assert <code>[data-testid="lab-table-empty-row"]</code> &rarr; Click <code>[data-testid="lab-table-empty-reset-filters-btn"]</code>.</li>
+                    <li><strong>Column Sort:</strong> Click <code>[data-testid^="sort-header-"]</code> &rarr; Assert column text ordering toggles asc/desc.</li>
+                    <li><strong>Select All:</strong> Check <code>[data-testid="lab-table-select-all"]</code> &rarr; Assert all filtered rows checked.</li>
+                    <li><strong>Row Select:</strong> Check <code>[data-testid^="lab-table-row-checkbox-"]</code> &rarr; Assert <code>[data-testid="lab-table-selected-count"]</code> increments.</li>
+                    <li><strong>Bulk Action:</strong> Select row(s) &rarr; Click <code>[data-testid="lab-table-bulk-action-btn"]</code> &rarr; Assert success in inspector.</li>
+                  </ul>
+                </div>
+              )}
 
               <div className="lab-form-group">
                 <input
@@ -914,13 +1034,14 @@ export default function AutomationLabPage() {
                         <input
                           type="checkbox"
                           data-testid="lab-table-select-all"
-                          checked={filteredTableRows.length > 0 && selectedRows.length === filteredTableRows.length}
+                          checked={allFilteredSelected}
                           onChange={(e) => {
+                            const visibleIds = filteredTableRows.map((r) => r.id);
                             if (e.target.checked) {
-                              setSelectedRows(filteredTableRows.map((r) => r.id));
-                              logAction("Table Select All", `Selected all ${filteredTableRows.length} rows.`, "info");
+                              setSelectedRows((prev) => Array.from(new Set([...prev, ...visibleIds])));
+                              logAction("Table Select All", `Selected all ${visibleIds.length} rows.`, "info");
                             } else {
-                              setSelectedRows([]);
+                              setSelectedRows((prev) => prev.filter((id) => !visibleIds.includes(id)));
                               logAction("Table Deselect All", "Cleared row selection.", "info");
                             }
                           }}
@@ -1050,7 +1171,25 @@ export default function AutomationLabPage() {
           {activeTab === "async" && (
             <section className="card lab-section animate-fade" data-testid="lab-section-async">
               <h3>Async Waits & Network Simulations</h3>
-              <p className="muted">Practice explicit waits (`WebDriverWait`, `cy.wait()`, `page.waitForSelector()`) and loaders.</p>
+              <p className="muted">
+                {specMode
+                  ? "RAW SPEC: Explicit waits without hard sleeps · Spinner unmount · AJAX latency · Countdown"
+                  : "Practice explicit waits (`WebDriverWait`, `cy.wait()`, `page.waitForSelector()`) and loaders."}
+              </p>
+
+              {specMode && (
+                <div className="spec-objective-card" data-testid="spec-objective-box">
+                  <div className="spec-badge">CAVEMAN SPEC &middot; ASYNC &amp; WAITS OBJECTIVES</div>
+                  <ul className="spec-list">
+                    <li><strong>Loading Spinner:</strong> Click <code>[data-testid="lab-loading-state-btn"]</code> &rarr; Wait for <code>[data-testid="lab-loading-indicator"]</code> to appear &rarr; Wait until unmounted (1.5s).</li>
+                    <li><strong>API Delay:</strong> Click <code>[data-testid="lab-api-delay-btn"]</code> &rarr; Poll until loading clears &rarr; Assert HTTP 200 payload in inspector.</li>
+                    <li><strong>AJAX Wait:</strong> Click <code>[data-testid="lab-ajax-fast-btn"]</code> &rarr; Wait until <code>[data-testid="lab-ajax-result-text"]</code> contains "Record count: 42".</li>
+                    <li><strong>Countdown Timer:</strong> Enter 1-30 in <code>[data-testid="lab-custom-countdown-input"]</code> &rarr; Click Start &rarr; Wait for completion badge.</li>
+                  </ul>
+                </div>
+              )}
+
+              <AsyncWaitFlowDiagram />
 
               <div className="lab-button-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
                 <button data-testid="lab-loading-state-btn" onClick={handleAsyncLoading}>Show Loading State (1.5s)</button>
@@ -1060,8 +1199,9 @@ export default function AutomationLabPage() {
               </div>
 
               {loadingState && (
-                <div className="practice-message" data-testid="lab-loading-indicator">
-                  <span>⌛</span> Processing background operation...
+                <div className="practice-message" data-testid="lab-loading-indicator" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Loader2 size={16} strokeWidth={1.75} />
+                  <span>Processing background operation...</span>
                 </div>
               )}
 
@@ -1076,12 +1216,28 @@ export default function AutomationLabPage() {
           {activeTab === "frames" && (
             <section className="card lab-section animate-fade" data-testid="lab-section-frames-storage">
               <h3>Frames, Shadow DOM & Web Storage</h3>
-              <p className="muted">Practice iframe context switching, shadow DOM piercing, and web storage.</p>
+              <p className="muted">
+                {specMode
+                  ? "RAW SPEC: Context switch to iframe · Pierce shadow root · Read/write Web Storage & document.cookie"
+                  : "Practice iframe context switching, shadow DOM piercing, and web storage."}
+              </p>
+
+              {specMode && (
+                <div className="spec-objective-card" data-testid="spec-objective-box">
+                  <div className="spec-badge">CAVEMAN SPEC &middot; FRAMES &amp; STORAGE OBJECTIVES</div>
+                  <ul className="spec-list">
+                    <li><strong>Iframe:</strong> Context switch to <code>[data-testid="lab-iframe-container"]</code> &rarr; Click <code>[data-testid="lab-iframe-btn"]</code> &rarr; Assert button text changes to "Clicked Inside Iframe".</li>
+                    <li><strong>Shadow Root:</strong> Pierce <code>[data-testid="lab-shadow-container"]</code> shadow root &rarr; Click <code>[data-testid="lab-shadow-btn"]</code> &rarr; Assert text changes to "Shadow Element Triggered".</li>
+                    <li><strong>LocalStorage:</strong> Fill key/value &rarr; Click <code>[data-testid="lab-set-storage-btn"]</code> &rarr; Assert stored. Click <code>[data-testid="lab-get-storage-btn"]</code> &rarr; Assert inspector log.</li>
+                    <li><strong>Cookies:</strong> Click <code>[data-testid="lab-set-cookie-btn"]</code> &rarr; Click <code>[data-testid="lab-get-cookie-btn"]</code> &rarr; Assert <code>[data-testid="lab-cookie-status"]</code> contains session cookie.</li>
+                  </ul>
+                </div>
+              )}
 
               <div className="lab-form-group">
                 <label>Simulated Iframe Document</label>
-                <div className="iframe-box" data-testid="lab-iframe-container" style={{ border: "2px dashed #6366f1", borderRadius: "14px", padding: "16px", background: darkMode ? "#0f172a" : "#f8faff", color: darkMode ? "#f1f5f9" : "#0f172a" }}>
-                  <p className="muted" style={{ margin: "0 0 10px" }}>[Iframe Context Window]</p>
+                <div className="iframe-box" data-testid="lab-iframe-container">
+                  <p className="muted" style={{ margin: "0 0 10px" }}><code>[Iframe Context Window]</code></p>
                   <button
                     data-testid="lab-iframe-btn"
                     onClick={() => {
@@ -1089,15 +1245,15 @@ export default function AutomationLabPage() {
                       logAction("Iframe Interaction", "Clicked button inside simulated iframe context.", "success");
                     }}
                   >
-                    {iframeClicked ? "Clicked Inside Iframe! 🎯" : "Click Button Inside Iframe"}
+                    {iframeClicked ? "Clicked Inside Iframe" : "Click Button Inside Iframe"}
                   </button>
                 </div>
               </div>
 
               <div className="lab-form-group" style={{ marginTop: "16px" }}>
                 <label>Shadow DOM Root Container</label>
-                <div className="shadow-box" data-testid="lab-shadow-container" style={{ border: "2px solid #6366f1", borderRadius: "14px", padding: "16px", background: darkMode ? "#0f172a" : "#f5f3ff", color: darkMode ? "#f1f5f9" : "#0f172a" }}>
-                  <p className="muted" style={{ margin: "0 0 10px" }}>[Closed/Open Shadow Root]</p>
+                <div className="shadow-box" data-testid="lab-shadow-container">
+                  <p className="muted" style={{ margin: "0 0 10px" }}><code>[Closed/Open Shadow Root]</code></p>
                   <button
                     data-testid="lab-shadow-btn"
                     onClick={() => {
@@ -1105,7 +1261,7 @@ export default function AutomationLabPage() {
                       logAction("Shadow DOM Interaction", "Interacted with element inside Shadow DOM boundary.", "success");
                     }}
                   >
-                    {shadowDomClicked ? "Shadow Element Triggered! ✨" : "Interact with Shadow DOM Element"}
+                    {shadowDomClicked ? "Shadow Element Triggered" : "Interact with Shadow DOM Element"}
                   </button>
                 </div>
               </div>
@@ -1116,6 +1272,7 @@ export default function AutomationLabPage() {
                   <input
                     data-testid="lab-storage-key-input"
                     value={storageKey}
+                    maxLength={128}
                     onChange={(e) => {
                       setStorageKey(e.target.value);
                       if (storageError) setStorageError("");
@@ -1125,6 +1282,7 @@ export default function AutomationLabPage() {
                   <input
                     data-testid="lab-storage-val-input"
                     value={storageVal}
+                    maxLength={2048}
                     onChange={(e) => {
                       setStorageVal(e.target.value);
                       if (storageError) setStorageError("");
@@ -1141,8 +1299,8 @@ export default function AutomationLabPage() {
                   <button
                     data-testid="lab-set-storage-btn"
                     onClick={() => {
-                      const k = storageKey.trim();
-                      const v = storageVal.trim();
+                      const k = sanitizeControlChars(storageKey.trim(), 128);
+                      const v = sanitizeControlChars(storageVal.trim(), 2048);
                       if (!k) {
                         setStorageError("Storage key is required");
                         showToast("Storage key is required", "error");
@@ -1151,6 +1309,11 @@ export default function AutomationLabPage() {
                       if (!v) {
                         setStorageError("Storage value is required");
                         showToast("Storage value is required", "error");
+                        return;
+                      }
+                      if (RESERVED_STORAGE_KEYS.has(k)) {
+                        setStorageError("Reserved application storage key cannot be overwritten in sandbox");
+                        showToast("Reserved storage key blocked", "error");
                         return;
                       }
                       setStorageError("");
@@ -1164,7 +1327,7 @@ export default function AutomationLabPage() {
                   <button
                     data-testid="lab-get-storage-btn"
                     onClick={() => {
-                      const k = storageKey.trim();
+                      const k = sanitizeControlChars(storageKey.trim(), 128);
                       if (!k) {
                         setStorageError("Storage key is required to read localStorage");
                         showToast("Storage key is required", "error");
@@ -1185,7 +1348,7 @@ export default function AutomationLabPage() {
                   <button
                     data-testid="lab-set-cookie-btn"
                     onClick={() => {
-                      document.cookie = "automation_session=active_99; path=/;";
+                      document.cookie = "automation_session=active_99; path=/; SameSite=Strict;";
                       setCookieResult("automation_session=active_99 cookie successfully set.");
                       logAction("Set Cookie", "Set document.cookie = automation_session=active_99", "success");
                     }}
@@ -1211,7 +1374,24 @@ export default function AutomationLabPage() {
           {activeTab === "notifications" && (
             <section className="card lab-section animate-fade" data-testid="lab-section-notifications">
               <h3>Toasts, Alerts & Modals</h3>
-              <p className="muted">Test notification banners, random alert popups, custom countdown timers, and modal assertions.</p>
+              <p className="muted">
+                {specMode
+                  ? "RAW SPEC: Dismiss transient toasts · Assert static modal · Parse random alert popups · Run timer"
+                  : "Test notification banners, random alert popups, custom countdown timers, and modal assertions."}
+              </p>
+
+              {specMode && (
+                <div className="spec-objective-card" data-testid="spec-objective-box">
+                  <div className="spec-badge">CAVEMAN SPEC &middot; NOTIFICATIONS &amp; MODALS OBJECTIVES</div>
+                  <ul className="spec-list">
+                    <li><strong>Toast Banners:</strong> Click <code>[data-testid^="lab-toast-"]</code> &rarr; Assert <code>[data-testid="toast-message"]</code> visible &rarr; Wait 2.8s auto-dismiss.</li>
+                    <li><strong>Static Modal:</strong> Click <code>[data-testid="lab-open-modal-btn"]</code> &rarr; Assert <code>[data-testid="lab-practice-modal"]</code> visible &rarr; Click <code>[data-testid="lab-modal-close-btn"]</code> or press Escape.</li>
+                    <li><strong>Random Popup:</strong> Click <code>[data-testid="lab-random-popup-btn"]</code> &rarr; Extract <code>[data-testid="lab-random-popup-id"]</code> &rarr; Assert severity badge &rarr; Dismiss via <code>[data-testid="lab-random-popup-close-btn"]</code>.</li>
+                    <li><strong>Countdown Timer:</strong> Configure custom countdown &rarr; Assert live timer DOM updates.</li>
+                  </ul>
+                </div>
+              )}
+
               <div className="lab-button-grid">
                 <button data-testid="lab-toast-success-btn" onClick={() => handleTriggerToast("success")}>Success Toast</button>
                 <button data-testid="lab-toast-error-btn" onClick={() => handleTriggerToast("error")}>Error Toast</button>
@@ -1232,7 +1412,10 @@ export default function AutomationLabPage() {
           <div className="lab-right inspector-panel animate-fade" data-testid="automation-lab-inspector-panel">
             <div className="card inspector-card">
               <div className="between inspector-header">
-                <h3>🔍 Live Inspector Console</h3>
+                <h3 style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                  <Terminal size={16} strokeWidth={1.75} />
+                  <span>Live Inspector Console</span>
+                </h3>
                 <span className={`status-badge ${outputResult?.type || "info"}`} data-testid="inspector-status-badge">
                   {outputResult?.type?.toUpperCase() || "READY"}
                 </span>
@@ -1260,7 +1443,10 @@ export default function AutomationLabPage() {
               </div>
 
               <div className="inspector-logs-section">
-                <h4>📋 Action History Log</h4>
+                <h4 style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <History size={14} strokeWidth={1.75} />
+                  <span>Action History Log</span>
+                </h4>
                 <div className="inspector-logs-list" data-testid="inspector-logs-list">
                   {logs.length === 0 ? (
                     <p className="muted" style={{ padding: "10px 0" }}>No actions performed yet. Interact with the left panel.</p>
@@ -1277,8 +1463,8 @@ export default function AutomationLabPage() {
 
               {logs.length > 0 && (
                 <button
-                  className="full"
-                  style={{ marginTop: "16px", background: "#eef2ff", color: "#4f46e5" }}
+                  className="full secondary-btn"
+                  style={{ marginTop: "16px", background: "var(--accent-soft)", color: "var(--accent)", border: "1px solid var(--accent-border)" }}
                   data-testid="inspector-clear-logs-btn"
                   onClick={() => {
                     setLogs([]);
@@ -1331,10 +1517,9 @@ export default function AutomationLabPage() {
           }}
         >
           <div className="modal" data-testid="lab-sent-confirmation-modal" style={{ textAlign: "center" }}>
-            <div style={{ fontSize: "42px", marginBottom: "10px" }}></div>
             <h2>Message Sent Successfully!</h2>
             <p className="muted" style={{ margin: "10px 0" }}>Your message was transmitted and confirmed:</p>
-            <div style={{ background: darkMode ? "#0f172a" : "#f8faff", border: darkMode ? "1px solid #334155" : "1px solid #e2e8f0", padding: "12px", borderRadius: "10px", fontWeight: "700", color: darkMode ? "#f1f5f9" : "#0f172a", margin: "16px 0" }}>
+            <div style={{ background: "var(--bg-raised)", border: "1px solid var(--border-hairline)", padding: "12px", borderRadius: "10px", fontWeight: "700", color: "var(--text-primary)", margin: "16px 0" }}>
               "{sentMessageModal}"
             </div>
             <div className="right" style={{ justifyContent: "center" }}>
@@ -1376,8 +1561,9 @@ export default function AutomationLabPage() {
                   fontSize: "12px",
                   padding: "4px 8px",
                   borderRadius: "6px",
-                  background: darkMode ? "#0f172a" : "#f1f5f9",
-                  color: darkMode ? "#94a3b8" : "#475569",
+                  background: "var(--bg-raised)",
+                  color: "var(--text-secondary)",
+                  border: "1px solid var(--border-hairline)",
                 }}
               >
                 {randomPopup.popupId} · {randomPopup.timestamp}
@@ -1394,12 +1580,9 @@ export default function AutomationLabPage() {
             <div className="right" style={{ marginTop: "18px", gap: "10px" }}>
               <button
                 type="button"
+                className="secondary-btn"
                 data-testid="lab-random-popup-next-btn"
                 onClick={handleTriggerRandomPopup}
-                style={{
-                  background: darkMode ? "#334155" : "#e2e8f0",
-                  color: darkMode ? "#f8fafc" : "#1e293b",
-                }}
               >
                 Trigger Another
               </button>

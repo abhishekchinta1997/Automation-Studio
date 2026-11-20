@@ -1,7 +1,16 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { AppUser, Role, UserStatus } from "../types/user";
+import { TableSearchMode } from "../types/table";
+import {
+  SUPER_USER_EMAIL,
+  SUPER_USER_ID,
+  isSuperUser,
+  isNeverLoggedIn,
+  testIdSlug,
+  matchesBySearchMode,
+} from "../utils/userHelpers";
 import CustomSelect from "../components/CustomSelect";
 
 type ExtendedUser = AppUser & {
@@ -28,11 +37,8 @@ type SortKey =
   | "lastLogin";
 
 type SortDirection = "asc" | "desc";
-type SearchMode = "exact" | "partial" | "starts";
+type SearchMode = TableSearchMode;
 type ModalMode = "create" | "edit" | null;
-
-const SUPER_USER_EMAIL = "admin@example.com";
-const SUPER_USER_ID = "USR-1001";
 
 const emptyForm: ExtendedForm = {
   name: "",
@@ -42,10 +48,6 @@ const emptyForm: ExtendedForm = {
   status: "Active" as UserStatus,
   userGroup: "Engineering",
 };
-
-function isSuperUser(user?: Partial<ExtendedUser> | null) {
-  return user?.email === SUPER_USER_EMAIL || user?.id === SUPER_USER_ID;
-}
 
 function isAdminUser(user?: Partial<ExtendedUser> | null) {
   return user?.role === "Admin User";
@@ -59,25 +61,9 @@ function getCreatedTime(user: ExtendedUser) {
   return new Date(user.createdDate).getTime() || 0;
 }
 
-function getLastLoginValue(user: ExtendedUser) {
-  return String(user.lastLogin || "").trim().toLowerCase();
-}
-
-function isNeverLoggedIn(user: ExtendedUser) {
-  const value = getLastLoginValue(user);
-  return !value || value === "never" || value === "n/a" || value === "not logged in";
-}
-
 function getUserIdNumber(id: string) {
   const match = id.match(/\d+/);
   return match ? Number(match[0]) : 0;
-}
-
-function testIdSlug(value: string) {
-  return String(value || "unknown")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
 }
 
 export default function AdminUserManagementPage() {
@@ -88,7 +74,6 @@ export default function AdminUserManagementPage() {
     updateUser,
     deleteUsers,
     bulkStatus,
-    resetPassword,
     createRandomUsers,
     showToast,
   } = useApp();
@@ -131,6 +116,15 @@ const [newPassword, setNewPassword] =
 
 const [resetPasswordError, setResetPasswordError] =
   useState("");
+
+  const tableWrapRef = useRef<HTMLDivElement>(null);
+  const scrollBarRef = useRef<HTMLDivElement>(null);
+  const emailHeaderRef = useRef<HTMLTableCellElement>(null);
+  const [hasOverflow, setHasOverflow] = useState(false);
+  const [scrollWidth, setScrollWidth] = useState(0);
+  const [frozenWidth, setFrozenWidth] = useState(528);
+  const isSyncingTable = useRef(false);
+  const isSyncingBar = useRef(false);
 
   function normalizeUser(user: ExtendedUser): ExtendedUser {
     if (isSuperUser(user)) {
@@ -209,7 +203,7 @@ const [resetPasswordError, setResetPasswordError] =
   function openCreate() {
     setForm({
       ...emptyForm,
-      role: loggedInIsSuperUser ? ("Test User" as Role) : ("Test User" as Role),
+      role: "Test User" as Role,
     });
     setEditing(null);
     setError("");
@@ -275,8 +269,6 @@ const [resetPasswordError, setResetPasswordError] =
         setError(createError);
         return;
       }
-
-      showToast(`User ${form.name} created successfully`, "success");
     } else if (editing) {
       if (!canManageUser(editing)) {
         setError("You do not have permission to update this user");
@@ -303,24 +295,13 @@ const [resetPasswordError, setResetPasswordError] =
       }
 
       updateUser(editing.id, updatedForm);
-      showToast(`User ${form.name} updated`, "success");
     }
 
     setModal(null);
   }
 
   function matchesSearch(user: ExtendedUser) {
-    const query = search.trim().toLowerCase();
-    if (!query) return true;
-
-    const values = [user.name, user.email].map((value) => value.toLowerCase());
-
-    if (searchMode === "exact") return values.some((value) => value === query);
-    if (searchMode === "starts") {
-      return values.some((value) => value.startsWith(query));
-    }
-
-    return values.some((value) => value.includes(query));
+    return matchesBySearchMode([user.name, user.email], search.trim().toLowerCase(), searchMode);
   }
 
   function compareUsers(a: ExtendedUser, b: ExtendedUser) {
@@ -364,9 +345,68 @@ const [resetPasswordError, setResetPasswordError] =
     sortDirection,
   ]);
 
-  const pageUsers = filtered.slice((page - 1) * pageSize, page * pageSize);
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageUsers = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
   const selectablePageUsers = pageUsers.filter(canSelectUser);
+
+  useEffect(() => {
+    if (page !== safePage) {
+      setPage(safePage);
+    }
+  }, [page, safePage]);
+
+  useEffect(() => {
+    const el = tableWrapRef.current;
+    if (!el) return;
+
+    function updateDimensions() {
+      if (!el) return;
+      const sWidth = el.scrollWidth;
+      const cWidth = el.clientWidth;
+      setScrollWidth(sWidth);
+      setHasOverflow(sWidth > cWidth + 2);
+
+      if (emailHeaderRef.current) {
+        const emailRect = emailHeaderRef.current.getBoundingClientRect();
+        const wrapRect = el.getBoundingClientRect();
+        const calcWidth = Math.round(emailRect.right - wrapRect.left);
+        if (calcWidth > 0) {
+          setFrozenWidth(calcWidth);
+        }
+      }
+    }
+
+    updateDimensions();
+    window.addEventListener("resize", updateDimensions);
+    const observer = new ResizeObserver(updateDimensions);
+    observer.observe(el);
+
+    return () => {
+      window.removeEventListener("resize", updateDimensions);
+      observer.disconnect();
+    };
+  }, [pageUsers, users]);
+
+  function handleTableScroll() {
+    if (isSyncingTable.current) {
+      isSyncingTable.current = false;
+      return;
+    }
+    if (!tableWrapRef.current || !scrollBarRef.current) return;
+    isSyncingBar.current = true;
+    scrollBarRef.current.scrollLeft = tableWrapRef.current.scrollLeft;
+  }
+
+  function handleBarScroll() {
+    if (isSyncingBar.current) {
+      isSyncingBar.current = false;
+      return;
+    }
+    if (!tableWrapRef.current || !scrollBarRef.current) return;
+    isSyncingTable.current = true;
+    tableWrapRef.current.scrollLeft = scrollBarRef.current.scrollLeft;
+  }
 
   function toggleSort(nextSortKey: SortKey) {
   let nextDirection: SortDirection = "asc";
@@ -510,11 +550,6 @@ function handleGenerateAdminUsers() {
     "Admin User"
   );
 
-  showToast(
-    `${bulkCount} admin users generated`,
-    "success"
-  );
-
   setGenerateUserModal(false);
 }
 
@@ -522,11 +557,6 @@ function handleGenerateTestUsers() {
   createRandomUsers(
     bulkCount,
     "Test User"
-  );
-
-  showToast(
-    `${bulkCount} test users generated`,
-    "success"
   );
 
   setGenerateUserModal(false);
@@ -817,11 +847,16 @@ function handleGenerateTestUsers() {
         
       </div>
 
-      <div className="table-wrap">
-        <table data-testid="user-management-users-table">
+      <div className="table-outer-card">
+        <div
+          className="table-wrap frozen-table-wrap"
+          ref={tableWrapRef}
+          onScroll={handleTableScroll}
+        >
+          <table data-testid="user-management-users-table">
           <thead>
             <tr>
-              <th>
+              <th className="frozen-col frozen-col-check">
                 <input
                   data-testid="user-management-select-all-users-checkbox"
                   type="checkbox"
@@ -833,7 +868,7 @@ function handleGenerateTestUsers() {
                   onChange={allSelected}
                 />
               </th>
-              <th>
+              <th className="frozen-col frozen-col-id">
                 <button
                   type="button"
                   className="sortable-header"
@@ -843,7 +878,7 @@ function handleGenerateTestUsers() {
                   User ID {sortLabel("id")}
                 </button>
               </th>
-              <th>
+              <th className="frozen-col frozen-col-name">
                 <button
                   type="button"
                   className="sortable-header"
@@ -853,7 +888,7 @@ function handleGenerateTestUsers() {
                   Name {sortLabel("name")}
                 </button>
               </th>
-              <th>
+              <th className="frozen-col frozen-col-email" ref={emailHeaderRef}>
                 <button
                   type="button"
                   className="sortable-header"
@@ -927,7 +962,7 @@ function handleGenerateTestUsers() {
             ) : (
               pageUsers.map((user) => (
                 <tr key={user.id} data-testid={`user-management-user-row-${testIdSlug(user.id)}`} className={ loggedInUser?.id === user.id ? "logged-in-user-row" : ""} >
-                  <td>
+                  <td className="frozen-col frozen-col-check">
                     {canSelectUser(user) ? (
                       <input
                         data-testid={`user-management-select-user-checkbox-${testIdSlug(user.id)}`}
@@ -937,9 +972,9 @@ function handleGenerateTestUsers() {
                       />
                     ) : null}
                   </td>
-                  <td>{user.id}</td>
-                  <td>{user.name}</td>
-                  <td>{user.email}</td>
+                  <td className="frozen-col frozen-col-id">{user.id}</td>
+                  <td className="frozen-col frozen-col-name">{user.name}</td>
+                  <td className="frozen-col frozen-col-email">{user.email}</td>
                   <td>{renderRoleBadge(user)}</td>
                   <td>
                     <span className={`pill ${user.status}`} data-testid={`user-management-status-badge-${testIdSlug(user.id)}-${testIdSlug(user.status)}`}>{user.status}</span>
@@ -1040,6 +1075,28 @@ function handleGenerateTestUsers() {
         </table>
       </div>
 
+      {hasOverflow && (
+        <div className="table-custom-scrollbar-dock" aria-hidden="true">
+          <div
+            className="table-custom-scrollbar-frozen-spacer"
+            style={{ width: `${frozenWidth}px` }}
+          />
+          <div
+            className="table-custom-scrollbar-viewport"
+            ref={scrollBarRef}
+            onScroll={handleBarScroll}
+          >
+            <div
+              style={{
+                width: `${Math.max(1, scrollWidth - frozenWidth)}px`,
+                height: "1px",
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+
       <div className="pagination" data-testid="user-management-pagination">
         <div className="page-size-box">
           <span>Show</span>
@@ -1075,20 +1132,20 @@ function handleGenerateTestUsers() {
 
   <button
     data-testid="user-management-previous-page-button"
-    disabled={page === 1}
-    onClick={() => setPage(page - 1)}
+    disabled={safePage === 1}
+    onClick={() => setPage(Math.max(1, safePage - 1))}
   >
     Previous
   </button>
 
   <span data-testid="user-management-page-number">
-    Page {page} of {totalPages}
+    Page {safePage} of {totalPages}
   </span>
 
   <button
     data-testid="user-management-next-page-button"
-    disabled={page === totalPages}
-    onClick={() => setPage(page + 1)}
+    disabled={safePage === totalPages}
+    onClick={() => setPage(Math.min(totalPages, safePage + 1))}
   >
     Next
   </button>

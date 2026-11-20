@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Check, Copy, RotateCcw, Search, X } from "lucide-react";
 import { useApp } from "../context/AppContext";
+import { LocatorPriorityDiagram } from "./QaDiagrams";
 
 type LocatorCategory =
   | "All"
@@ -20,13 +21,13 @@ interface LocatorEntry {
 
 const LOCATOR_ENTRIES: LocatorEntry[] = [
   // Authentication
-  { module: "Authentication", element: "Email Input", testId: "email-input", description: "Login form email field" },
-  { module: "Authentication", element: "Password Input", testId: "password-input", description: "Login form password field" },
-  { module: "Authentication", element: "Sign In Button", testId: "login-button", description: "Submits login credentials" },
-  { module: "Authentication", element: "Login Error Alert", testId: "error-alert", description: "Validation or auth failure banner" },
-  { module: "Authentication", element: "Quick Fill Super Admin", testId: "fill-superadmin-btn", description: "One-click credential fill for Super Admin" },
-  { module: "Authentication", element: "Quick Fill Admin", testId: "fill-admin-btn", description: "One-click credential fill for Admin User" },
-  { module: "Authentication", element: "Quick Fill Test User", testId: "fill-user-btn", description: "One-click credential fill for Test User" },
+  { module: "Authentication", element: "Email Input", testId: "login-username-input", description: "Login form email field" },
+  { module: "Authentication", element: "Password Input", testId: "login-password-input", description: "Login form password field" },
+  { module: "Authentication", element: "Sign In Button", testId: "login-submit-button", description: "Submits login credentials" },
+  { module: "Authentication", element: "Login Error Alert", testId: "login-error-alert", description: "Validation or auth failure banner" },
+  { module: "Authentication", element: "Quick Fill Super Admin", testId: "super-user-credentials", description: "One-click credential fill for Super Admin" },
+  { module: "Authentication", element: "Quick Fill Admin", testId: "admin-user-credentials", description: "One-click credential fill for Admin User" },
+  { module: "Authentication", element: "Quick Fill Test User", testId: "test-user-credentials", description: "One-click credential fill for Test User" },
 
   // Navigation & Theme
   { module: "Navigation & Theme", element: "Sidebar Navigation", testId: "sidebar", description: "Fixed left navigation menu panel" },
@@ -108,7 +109,7 @@ interface QaGuideModalProps {
 }
 
 export default function QaGuideModal({ open, onClose }: QaGuideModalProps) {
-  const { showToast } = useApp();
+  const { showToast, specMode } = useApp();
   const [category, setCategory] = useState<LocatorCategory>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -182,7 +183,9 @@ export default function QaGuideModal({ open, onClose }: QaGuideModalProps) {
             <div>
               <h2 id="qa-guide-title">QA Test Guide &amp; Locators</h2>
               <p className="muted">
-                Reference cheat sheet of stable <code>data-testid</code> selectors for Playwright, Cypress, and Selenium.
+                {specMode
+                  ? "RAW SPEC CONTRACTS: Stable data-testid locator catalog for Playwright, Cypress, and Selenium automation suites."
+                  : "Reference cheat sheet of stable data-testid selectors for Playwright, Cypress, and Selenium."}
               </p>
             </div>
           </div>
@@ -198,6 +201,8 @@ export default function QaGuideModal({ open, onClose }: QaGuideModalProps) {
         </div>
 
         <div className="qa-guide-controls">
+          <LocatorPriorityDiagram />
+
           <div className="qa-guide-categories" role="tablist" aria-label="Locator categories">
             {CATEGORIES.map((cat) => (
               <button

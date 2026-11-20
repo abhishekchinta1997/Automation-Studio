@@ -35,18 +35,18 @@ interface AppContextType {
   systemLogs: SystemLog[];
   darkMode: boolean;
   themePreference: ThemePreference;
+  specMode: boolean;
   toast: Toast;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  toggleDarkMode: () => void;
   setTheme: (preference: ThemePreference) => void;
+  setSpecMode: (val: boolean | ((prev: boolean) => boolean)) => void;
   showToast: (message: string, type?: "success" | "error" | "info" | "warning") => void;
   dismissToast: () => void;
   createUser: (user: Omit<AppUser, "id" | "createdDate" | "lastLogin">) => string | null;
   updateUser: (id: string, changes: Partial<AppUser>) => void;
   deleteUsers: (ids: string[]) => void;
   bulkStatus: (ids: string[], status: UserStatus) => void;
-  resetPassword: (id: string) => void;
   createRandomUsers: (count: number, role: "Admin User" | "Test User") => void;
   updateOwnProfile: (name: string, password: string) => void;
   recordAuditEvent: (
@@ -76,16 +76,38 @@ function newId(prefix: string) {
   return `${prefix}-${Date.now()}-${unique}`;
 }
 
+const VALID_ROLES = new Set(["Super User", "Admin User", "Test User"]);
+const VALID_STATUSES = new Set(["Active", "Disabled"]);
+
+function isValidAppUser(val: unknown): val is AppUser {
+  if (!val || typeof val !== "object") return false;
+  const u = val as Record<string, unknown>;
+  return (
+    typeof u.id === "string" &&
+    typeof u.name === "string" &&
+    typeof u.email === "string" &&
+    typeof u.password === "string" &&
+    typeof u.role === "string" &&
+    VALID_ROLES.has(u.role) &&
+    typeof u.status === "string" &&
+    VALID_STATUSES.has(u.status) &&
+    typeof u.createdDate === "string" &&
+    typeof u.lastLogin === "string"
+  );
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<AppUser[]>(() => {
-    const saved = localStorage.getItem("automation-users");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {
-        // fallback
+    try {
+      const saved = localStorage.getItem("automation-users");
+      if (saved) {
+        const parsed: unknown = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(isValidAppUser)) {
+          return parsed;
+        }
       }
+    } catch (e) {
+      // fallback
     }
     return initialUsers;
   });
@@ -98,8 +120,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const saved = sessionStorage.getItem("automation-session-activity");
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        const parsed: unknown = JSON.parse(saved);
+        if (
+          Array.isArray(parsed) &&
+          parsed.every((item) => item && typeof item === "object" && typeof (item as Record<string, unknown>).id === "string")
+        ) {
+          return (parsed as ActivityItem[]).slice(0, 30);
+        }
       }
     } catch (e) {
       // ignore
@@ -110,8 +137,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const saved = sessionStorage.getItem("automation-session-login-attempts");
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        const parsed: unknown = JSON.parse(saved);
+        if (
+          Array.isArray(parsed) &&
+          parsed.every((item) => item && typeof item === "object" && typeof (item as Record<string, unknown>).id === "string")
+        ) {
+          return (parsed as LoginAttempt[]).slice(0, 30);
+        }
       }
     } catch (e) {
       // ignore
@@ -122,8 +154,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const saved = sessionStorage.getItem("automation-session-system-logs");
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        const parsed: unknown = JSON.parse(saved);
+        if (
+          Array.isArray(parsed) &&
+          parsed.every((item) => item && typeof item === "object" && typeof (item as Record<string, unknown>).id === "string")
+        ) {
+          return (parsed as SystemLog[]).slice(0, 30);
+        }
       }
     } catch (e) {
       // ignore
@@ -158,9 +195,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const saved = localStorage.getItem("automation-current-user");
     if (!saved) return null;
     try {
-      const parsed = JSON.parse(saved);
-      if (parsed && typeof parsed === "object" && typeof parsed.id === "string" && typeof parsed.role === "string") {
-        return parsed as AppUser;
+      const parsed: unknown = JSON.parse(saved);
+      if (isValidAppUser(parsed)) {
+        return parsed;
       }
     } catch (e) {
       // corrupt session data: fall through and clear it
@@ -195,6 +232,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     root.setAttribute("data-theme", darkMode ? "dark" : "light");
     root.setAttribute("data-theme-source", themePreference === "system" ? "system" : "manual");
   }, [darkMode, themePreference]);
+
+  const [specMode, setSpecModeState] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("automation-spec-mode") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const setSpecMode = (val: boolean | ((prev: boolean) => boolean)) => {
+    setSpecModeState((prev) => {
+      const next = typeof val === "function" ? val(prev) : val;
+      try {
+        localStorage.setItem("automation-spec-mode", String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
   const [toast, setToast] = useState<Toast>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
@@ -281,17 +339,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("automation-current-user");
   }
 
-  // Manual toggle: flips the *effective* theme and saves it as an explicit override.
-  function toggleDarkMode() {
-    const next: ThemePreference = darkMode ? "light" : "dark";
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, String(next === "dark"));
-    } catch (e) {
-      // storage unavailable: still apply for this session
-    }
-    setThemePreference(next);
-  }
-
   // Dropdown choice: "light"/"dark" are saved as a manual override, "system" clears it.
   function setTheme(preference: ThemePreference) {
     try {
@@ -367,16 +414,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast(`Users ${status}`);
   }
 
-  function resetPassword(id: string) {
-    const target = users.find((u) => u.id === id);
-    const targetLabel = target ? `${target.name} (${id})` : id;
-    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, password: "Password123" } : u)));
-    syncCurrentUser([id], { password: "Password123" });
-    addActivity(`Password reset for ${targetLabel}`, { action: "Password Reset", user: targetLabel, performedBy: currentUser?.name || "System", status: "Success" });
-    addSystemLog("Info", "Security", "Password Reset", `Password was reset for user ${targetLabel}.`);
-    showToast("Password reset to Password123", "info");
-  }
-
   function createRandomUsers(count: number, role: "Admin User" | "Test User") {
     const list = Array.from({ length: count }, (_, i) => ({ ...createRandomUser(i + users.length + 1), role }));
     setUsers((prev) => [...list, ...prev]);
@@ -429,22 +466,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     systemLogs,
     darkMode,
     themePreference,
+    specMode,
     toast,
     login,
     logout,
-    toggleDarkMode,
     setTheme,
+    setSpecMode,
     showToast,
     dismissToast,
     createUser,
     updateUser,
     deleteUsers,
     bulkStatus,
-    resetPassword,
     createRandomUsers,
     updateOwnProfile,
     recordAuditEvent,
-  }), [currentUser, users, activity, loginAttempts, systemLogs, darkMode, themePreference, toast]);
+  }), [currentUser, users, activity, loginAttempts, systemLogs, darkMode, themePreference, specMode, toast]);
 
   return (
     <AppContext.Provider value={value}>

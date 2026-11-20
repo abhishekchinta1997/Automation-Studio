@@ -1,7 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
+import {
+  Users,
+  ShieldAlert,
+  UserCog,
+  FlaskConical,
+  Lock,
+  Ban,
+  FileSpreadsheet,
+  FileText,
+  Printer,
+  Clock,
+  BarChart3,
+  Zap,
+  Activity,
+  Terminal,
+  KeyRound,
+  ShieldCheck,
+  ArrowUp,
+} from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { initialUsers } from "../data/mockUsers";
 import { AppUser } from "../types/user";
+import { escapeCSVCell, escapeHtml, sanitizeSpreadsheetCell, downloadFile } from "../utils/tableExport";
+import { isSuperUser, isAdminUser, isLocked, testIdSlug } from "../utils/userHelpers";
 
 type ModalType =
   | "total"
@@ -33,28 +54,9 @@ function getToday() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function isSuperUser(user: Partial<AppUser> | null | undefined) {
-  return user?.id === "USR-1001" || user?.email === "admin@example.com" || user?.role === "Super User";
-}
-
-function isAdminUser(user: Partial<AppUser> | null | undefined) {
-  return user?.role === "Admin User" || isSuperUser(user);
-}
-
-function isLocked(user: Partial<AppUser> | null | undefined) {
-  return user?.locked === true || user?.status === "Locked";
-}
-
 function safePercent(value: number, total: number) {
   if (!total) return 0;
   return Math.round((value / total) * 100);
-}
-
-function testIdSlug(value: string) {
-  return String(value || "unknown")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
 }
 
 function formatUser(user: Partial<AppUser> | null | undefined): FormattedUserRow {
@@ -165,45 +167,45 @@ export default function AdminHomePage() {
     key: Exclude<ModalType, "superUserProfile" | null>;
     title: string;
     count: number;
-    icon: string;
+    icon: ReactNode;
     tone: string;
   }[] = [
-    { key: "total", title: "Total Users", count: counts.totalUsers, icon: "👥", tone: "purple" },
-    { key: "super", title: "Super Users", count: counts.superUsers, icon: "🛡️", tone: "indigo" },
-    { key: "admin", title: "Admin Users", count: counts.adminUsers, icon: "🧑‍💼", tone: "blue" },
-    { key: "test", title: "Test Users", count: counts.testUsers, icon: "🧪", tone: "violet" },
-    { key: "locked", title: "Locked Users", count: counts.lockedUsers, icon: "🔒", tone: "amber" },
-    { key: "disabled", title: "Disabled Users", count: counts.disabledUsers, icon: "🚫", tone: "red" },
+    { key: "total", title: "Total Users", count: counts.totalUsers, icon: <Users size={16} strokeWidth={1.75} />, tone: "purple" },
+    { key: "super", title: "Super Users", count: counts.superUsers, icon: <ShieldAlert size={16} strokeWidth={1.75} />, tone: "indigo" },
+    { key: "admin", title: "Admin Users", count: counts.adminUsers, icon: <UserCog size={16} strokeWidth={1.75} />, tone: "blue" },
+    { key: "test", title: "Test Users", count: counts.testUsers, icon: <FlaskConical size={16} strokeWidth={1.75} />, tone: "violet" },
+    { key: "locked", title: "Locked Users", count: counts.lockedUsers, icon: <Lock size={16} strokeWidth={1.75} />, tone: "amber" },
+    { key: "disabled", title: "Disabled Users", count: counts.disabledUsers, icon: <Ban size={16} strokeWidth={1.75} />, tone: "red" },
   ];
 
   const quickActions = [
     {
       label: "Export CSV",
-      icon: "📄",
+      icon: <FileText size={16} strokeWidth={1.75} />,
       testId: "admin-dashboard-export-csv-button",
       action: () => exportUsersCsv(dashboardUsers),
     },
     {
       label: "Export Excel",
-      icon: "📗",
+      icon: <FileSpreadsheet size={16} strokeWidth={1.75} />,
       testId: "admin-dashboard-export-excel-button",
       action: () => exportUsersExcel(dashboardUsers),
     },
     {
       label: "Export PDF",
-      icon: "📕",
+      icon: <Printer size={16} strokeWidth={1.75} />,
       testId: "admin-dashboard-export-pdf-button",
       action: exportUsersPdf,
     },
     {
       label: "View Recent Activity",
-      icon: "🕘",
+      icon: <Clock size={16} strokeWidth={1.75} />,
       testId: "admin-dashboard-recent-activity-button",
       action: () => document.getElementById("recent-activity-section")?.scrollIntoView({ behavior: "smooth" }),
     },
     {
       label: "Open User Analytics",
-      icon: "📊",
+      icon: <BarChart3 size={16} strokeWidth={1.75} />,
       testId: "admin-dashboard-user-analytics-button",
       action: () => document.getElementById("analytics-section")?.scrollIntoView({ behavior: "smooth" }),
     },
@@ -220,15 +222,9 @@ export default function AdminHomePage() {
       return [user.id, user.name, user.email, user.role, user.status, user.createdDate, user.lastLogin];
     });
     const csv = [header, ...rows]
-      .map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "admin-users-export.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+      .map((row) => row.map((cell) => escapeCSVCell(cell)).join(","))
+      .join("\r\n");
+    downloadFile(csv, "admin-users-export.csv", "text/csv");
     recordAuditEvent(
       "Export Users CSV",
       `Exported ${exportUsers.length} user record(s) to CSV`,
@@ -247,18 +243,12 @@ export default function AdminHomePage() {
       .map(
         (row) =>
           `<tr>${row
-            .map((cell) => `<td>${String(cell ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;")}</td>`)
+            .map((cell) => `<td>${escapeHtml(sanitizeSpreadsheetCell(cell))}</td>`)
             .join("")}</tr>`
       )
       .join("");
     const excelHtml = `<html><head><meta charset="UTF-8" /></head><body><table>${table}</table></body></html>`;
-    const blob = new Blob([excelHtml], { type: "application/vnd.ms-excel;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "admin-users-export.xls";
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadFile(excelHtml, "admin-users-export.xls", "application/vnd.ms-excel");
     recordAuditEvent(
       "Export Users Excel",
       `Exported ${exportUsers.length} user record(s) to Excel`,
@@ -273,13 +263,13 @@ export default function AdminHomePage() {
         const user = formatUser(u);
         return `
           <tr>
-            <td>${user.id}</td>
-            <td>${user.name}</td>
-            <td>${user.email}</td>
-            <td>${user.role}</td>
-            <td>${user.status}</td>
-            <td>${user.createdDate}</td>
-            <td>${user.lastLogin}</td>
+            <td>${escapeHtml(user.id)}</td>
+            <td>${escapeHtml(user.name)}</td>
+            <td>${escapeHtml(user.email)}</td>
+            <td>${escapeHtml(user.role)}</td>
+            <td>${escapeHtml(user.status)}</td>
+            <td>${escapeHtml(user.createdDate)}</td>
+            <td>${escapeHtml(user.lastLogin)}</td>
           </tr>
         `;
       })
@@ -287,6 +277,7 @@ export default function AdminHomePage() {
 
     const printWindow = window.open("", "_blank");
     if (printWindow) {
+      printWindow.opener = null;
       printWindow.document.write(`
         <html>
           <head>
@@ -348,15 +339,16 @@ export default function AdminHomePage() {
           aria-label="Open super user details"
           onClick={() => setModal({ type: "superUserProfile", title: "Super User Details" })}
         >
-          🛡️ {canUseSuperActions ? "Super User" : "Admin User"}
+          <ShieldCheck size={15} strokeWidth={1.75} />
+          <span>{canUseSuperActions ? "Super User" : "Admin User"}</span>
         </button>
       </div>
 
       <section className="card dashboard-section" data-testid="admin-dashboard-quick-actions-section">
         <SectionTitle
-          icon="⚡"
+          icon={<Zap size={16} strokeWidth={1.75} />}
           title="Quick Actions"
-          subtitle="Common user export tasks and direct navigation to analytics and session logs."
+          subtitle="Common user export tasks and direct navigation to analytics and session logs"
         />
         <div className="quick-action-grid modern-actions">
           {quickActions.map((action) => (
@@ -367,7 +359,7 @@ export default function AdminHomePage() {
               onClick={action.action}
               disabled={!canUseAdminActions}
             >
-              <span>{action.icon}</span>
+              <span className="action-card-icon">{action.icon}</span>
               <strong>{action.label}</strong>
             </button>
           ))}
@@ -396,9 +388,9 @@ export default function AdminHomePage() {
         data-testid="admin-dashboard-analytics-section"
       >
         <SectionTitle
-          icon="📊"
+          icon={<BarChart3 size={16} strokeWidth={1.75} />}
           title="User Analytics"
-          subtitle="Live user status breakdown and role distribution synced with the active user directory."
+          subtitle="Live user status breakdown and role distribution synced with the active user directory"
         />
         <div className="dashboard-two-column">
           <AnalyticsCard title="User Status Overview" testId="user-status-overview-widget">
@@ -420,9 +412,9 @@ export default function AdminHomePage() {
         data-testid="admin-dashboard-recent-activity-section"
       >
         <SectionTitle
-          icon="📌"
+          icon={<Activity size={16} strokeWidth={1.75} />}
           title="Recent Activity"
-          subtitle="Real-time stream of user edits, logins, and table exports performed during this session."
+          subtitle="Real-time stream of user edits, logins, and table exports performed during this session"
         />
         <div className="activity-toolbar">
           {(["today", "7days", "30days"] as const).map((filter) => {
@@ -533,9 +525,9 @@ export default function AdminHomePage() {
         data-testid="admin-dashboard-system-logs-section"
       >
         <SectionTitle
-          icon="🧾"
+          icon={<Terminal size={16} strokeWidth={1.75} />}
           title="System Logs"
-          subtitle="Runtime audit events generated by authentication, user management, and data exports."
+          subtitle="Runtime audit events generated by authentication, user management, and data exports"
         />
         <div className="table-wrap professional-table">
           <table data-testid="admin-dashboard-system-logs-table">
@@ -576,9 +568,9 @@ export default function AdminHomePage() {
         data-testid="admin-dashboard-login-attempts-section"
       >
         <SectionTitle
-          icon="🔐"
+          icon={<KeyRound size={16} strokeWidth={1.75} />}
           title="Login Attempts"
-          subtitle="Authentication attempts recorded from the login flow during this session."
+          subtitle="Authentication attempts recorded from the login flow during this session"
         />
         <div className="table-wrap professional-table">
           <table data-testid="admin-dashboard-login-attempts-table">
@@ -617,11 +609,15 @@ export default function AdminHomePage() {
 
       {showScrollTop && (
         <button
+          type="button"
           className="scroll-top-button"
           data-testid="dashboard-scroll-top-button"
+          title="Scroll to top"
+          aria-label="Scroll to top"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         >
-          ↑
+          <ArrowUp size={15} strokeWidth={2.25} className="scroll-top-icon" />
+          <span className="scroll-top-text">Top</span>
         </button>
       )}
     </section>
@@ -637,7 +633,7 @@ function DashboardSummaryCard({
 }: {
   title: string;
   count: number;
-  icon: string;
+  icon: ReactNode;
   tone: string;
   onView: () => void;
 }) {
@@ -656,7 +652,7 @@ function DashboardSummaryCard({
   );
 }
 
-function SectionTitle({ icon, title, subtitle }: { icon: string; title: string; subtitle: string }) {
+function SectionTitle({ icon, title, subtitle }: { icon: ReactNode; title: string; subtitle: string }) {
   return (
     <div className="section-title">
       <span>{icon}</span>
